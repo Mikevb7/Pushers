@@ -1,9 +1,8 @@
 import { notFound, redirect } from "next/navigation";
-import { loadActiveAdvice, loadSets, requireMe } from "@/lib/data";
-import { daysBetween, dayKey } from "@/lib/dates";
+import { loadActiveAdvice, loadSets, requireUser } from "@/lib/data";
 import { EXERCISE_MAP } from "@/lib/exercises";
 import { planFor } from "@/lib/plan";
-import { sessionsFor, setsFor, suggest, type Suggestion } from "@/lib/progression";
+import { sessionsFor, suggest, type Suggestion } from "@/lib/progression";
 import type { GymDay } from "@/lib/schedule";
 import type { SetRow, Workout } from "@/lib/types";
 import { TrainingSession, type ExerciseInfo } from "@/components/TrainingSession";
@@ -12,7 +11,7 @@ const fmtKg = (n: number) => String(n).replace(".", ",");
 
 export default async function TrainingPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const { supabase, user, profile } = await requireMe();
+  const { supabase, user } = await requireUser();
   const { data: workout } = await supabase.from("workouts").select("*").eq("id", id).maybeSingle<Workout>();
   if (!workout || workout.user_id !== user.id || workout.day_type === "cardio") notFound();
   if (workout.completed_at) redirect(`/training/${id}/klaar`);
@@ -23,7 +22,6 @@ export default async function TrainingPage({ params }: { params: Promise<{ id: s
   const history = allSets.filter((s) => s.workout_id !== id);
   const dates = Object.fromEntries(history.map((s) => [s.workout_id, s.date]));
   const { items, notes } = planFor(day, advice);
-  const age = daysBetween(dayKey(profile.created_at), dayKey());
 
   const ids = new Set<string>();
   for (const i of items) {
@@ -53,7 +51,7 @@ export default async function TrainingPage({ params }: { params: Promise<{ id: s
       workoutId={id}
       day={day}
       startedAt={workout.started_at}
-      items={items.map((i) => ({ ...i, sets: setsFor(i, profile.level, age) }))}
+      items={items}
       notes={notes}
       info={info}
       logged={current}

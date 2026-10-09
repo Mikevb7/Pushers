@@ -106,8 +106,3 @@ export function suggest(item: PlanItem, ex: Exercise, history: Session[]): Sugge
   };
 }
 
-/** Beginners doen de eerste 4 weken 1 set minder (min. 2). */
-export function setsFor(item: PlanItem, level: "beginner" | "gevorderd", accountAgeDays: number): number {
-  if (level === "beginner" && accountAgeDays < 28) return Math.max(2, item.sets - 1);
-  return item.sets;
-}

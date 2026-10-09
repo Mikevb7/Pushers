@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { EXERCISE_MAP, getExercise } from "./exercises";
 import { PLAN, ROTATION } from "./schedule";
-import { suggest, setsFor, sessionsFor, type Session } from "./progression";
+import { suggest, sessionsFor, type Session } from "./progression";
 import { exerciseProgress, exerciseSeries, findPRs, muscleProgress, overallProgress, type DatedSet } from "./stats";
 import { consecutiveGymDays, habitStreak, nextGymDay, trainingAdvice, weekStatus, weekStreak } from "./rotation";
 import { addDays, weekStart, weekday } from "./dates";
@@ -62,11 +62,6 @@ describe("progressive overload", () => {
   it("3x stilstand wordt gemeld", () => {
     const h = [3, 2, 1].map((d) => sess([set({ exercise_id: ex.id, weight_kg: 50, reps: 9, workout_id: `w${d}` })], `2026-10-0${d}`));
     expect(suggest(item, ex, h).kind).toBe("stall");
-  });
-  it("beginners eerste 4 weken 1 set minder", () => {
-    expect(setsFor(item, "beginner", 3)).toBe(2);
-    expect(setsFor(item, "beginner", 40)).toBe(3);
-    expect(setsFor(item, "gevorderd", 3)).toBe(3);
   });
   it("sessionsFor groepeert en sorteert nieuwste eerst", () => {
     const rows = [

@@ -47,7 +47,6 @@ export default function LoginPage() {
           data: {
             display_name: String(f.get("name")).trim(),
             invite_code: String(f.get("code")).trim(),
-            level: String(f.get("level")),
           },
         },
       });
@@ -110,20 +109,6 @@ export default function LoginPage() {
         {mode === "nieuw" && (
           <>
             <input name="code" required placeholder="Uitnodigingscode" autoCapitalize="off" className={field} />
-            <fieldset className="pt-1">
-              <legend className="mb-2 text-sm text-mute">Hoe lang train je al?</legend>
-              <div className="grid grid-cols-2 gap-2">
-                {[
-                  ["beginner", "Net begonnen"],
-                  ["gevorderd", "Al een tijdje"],
-                ].map(([v, l]) => (
-                  <label key={v} className="flex cursor-pointer items-center gap-2 rounded-lg border border-line bg-steel px-3 py-3 has-[:checked]:border-pin">
-                    <input type="radio" name="level" value={v} defaultChecked={v === "beginner"} className="accent-pin" />
-                    {l}
-                  </label>
-                ))}
-              </div>
-            </fieldset>
           </>
         )}
 

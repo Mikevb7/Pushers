@@ -16,21 +16,6 @@ export default async function ProfilePage() {
           <span className="mb-1 block text-sm text-mute">Naam</span>
           <input name="display_name" defaultValue={profile.display_name} required className={field} />
         </label>
-        <fieldset>
-          <legend className="mb-1 text-sm text-mute">Niveau</legend>
-          <div className="grid grid-cols-2 gap-2">
-            {[
-              ["beginner", "Beginner"],
-              ["gevorderd", "Gevorderd"],
-            ].map(([v, l]) => (
-              <label key={v} className="flex items-center gap-2 rounded-lg border border-line bg-steel px-3 py-3 has-[:checked]:border-pin">
-                <input type="radio" name="level" value={v} defaultChecked={profile.level === v} className="accent-pin" />
-                {l}
-              </label>
-            ))}
-          </div>
-          <p className="mt-1.5 text-xs text-mute">Beginners doen de eerste 4 weken 1 set minder per oefening.</p>
-        </fieldset>
         <label className="block">
           <span className="mb-1 block text-sm text-mute">Lichaamsgewicht (kg)</span>
           <input name="bodyweight_kg" inputMode="decimal" defaultValue={String(profile.bodyweight_kg).replace(".", ",")} className={field} />

@@ -51,7 +51,6 @@ export function buildCoachContext(input: {
     vandaag: today,
     sporter: {
       naam: profile.display_name,
-      niveau: profile.level,
       weken_bezig: Math.floor(daysBetween(dayKey(profile.created_at), today) / 7),
       lichaamsgewicht_kg: bw,
     },

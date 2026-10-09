@@ -138,7 +138,6 @@ export async function updateProfile(formData: FormData) {
     .from("profiles")
     .update({
       display_name: String(formData.get("display_name") ?? "").trim().slice(0, 40) || "Naamloos",
-      level: formData.get("level") === "gevorderd" ? "gevorderd" : "beginner",
       bodyweight_kg: num("bodyweight_kg", 30, 250, 75),
       water_goal_ml: Math.round(num("water_goal_ml", 500, 10000, 3000)),
       glass_ml: Math.round(num("glass_ml", 50, 2000, 250)),

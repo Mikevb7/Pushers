@@ -7,8 +7,8 @@ export default function manifest(): MetadataRoute.Manifest {
     description: "Schema, progressie en streaks voor de crew.",
     start_url: "/",
     display: "standalone",
-    background_color: "#1d2125",
-    theme_color: "#1d2125",
+    background_color: "#f5f1ef",
+    theme_color: "#f5f1ef",
     lang: "nl",
     icons: [
       { src: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },

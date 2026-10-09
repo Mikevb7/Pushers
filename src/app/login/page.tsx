@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
@@ -66,16 +67,20 @@ export default function LoginPage() {
     router.refresh();
   }
 
-  const field = "w-full rounded-lg border border-line bg-steel px-3.5 py-3 text-chalk placeholder:text-mute/70 focus:border-pin focus:outline-none";
+  const field = "w-full rounded-full border border-line bg-steel px-5 py-3.5 text-chalk placeholder:text-mute/80 focus:border-pin-deep focus:outline-none";
 
   return (
-    <main className="mx-auto flex min-h-dvh max-w-md flex-col justify-center px-5 py-10">
-      <div className="mb-10">
-        <p className="display text-[5.5rem] font-bold">Pushers</p>
-        <p className="mt-3 text-mute">Eén schema voor de hele crew, ieder zijn eigen progressie.</p>
+    <main className="mx-auto flex min-h-dvh max-w-md flex-col px-4 pb-10 pt-[max(1rem,env(safe-area-inset-top))]">
+      <div className="relative mb-6 overflow-hidden rounded-[1.75rem] bg-night text-white">
+        <Image src="/equipment/evolve-cable.webp" alt="" fill priority sizes="448px" className="object-cover opacity-50" />
+        <div className="absolute inset-0 bg-gradient-to-b from-night/20 to-night/90" />
+        <div className="relative flex min-h-[17rem] flex-col justify-end p-5">
+          <p className="display text-[4.75rem] font-bold uppercase leading-[0.85]">Pushers</p>
+          <p className="mt-3 text-white/80">Eén schema voor de hele crew, ieder zijn eigen progressie.</p>
+        </div>
       </div>
 
-      <div className="mb-6 grid grid-cols-2 rounded-lg bg-steel p-1" role="tablist">
+      <div className="mb-5 grid grid-cols-2 rounded-full bg-steel-2 p-1" role="tablist">
         {(["in", "nieuw"] as Mode[]).map((m) => (
           <button
             key={m}
@@ -85,7 +90,7 @@ export default function LoginPage() {
               setMode(m);
               setError(null);
             }}
-            className={`rounded-md py-2.5 font-semibold ${mode === m ? "bg-steel-2 text-chalk" : "text-mute"}`}
+            className={`rounded-full py-2.5 font-semibold ${mode === m ? "bg-steel text-chalk shadow-sm" : "text-mute"}`}
           >
             {m === "in" ? "Inloggen" : "Account maken"}
           </button>
@@ -115,7 +120,7 @@ export default function LoginPage() {
         {error && <p className="rounded-lg bg-pin-dim/60 px-3 py-2.5 text-sm text-chalk">{error}</p>}
         {info && <p className="rounded-lg bg-steel-2 px-3 py-2.5 text-sm text-chalk">{info}</p>}
 
-        <button disabled={busy} className="mt-2 w-full rounded-lg bg-pin py-3.5 text-lg font-semibold text-floor disabled:opacity-60">
+        <button disabled={busy} className="mt-2 w-full rounded-full bg-pin py-3.5 text-lg font-semibold text-chalk disabled:opacity-60">
           {busy ? "Even geduld…" : mode === "in" ? "Inloggen" : "Account maken"}
         </button>
       </form>

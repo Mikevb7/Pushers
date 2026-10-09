@@ -56,7 +56,7 @@ export default async function ProgressPage({ searchParams }: { searchParams: Pro
   return (
     <div className="space-y-6">
       <header className="pt-2">
-        <h1 className="display text-6xl font-bold">Progressie</h1>
+        <h1 className="display text-6xl font-bold uppercase">Progressie</h1>
       </header>
 
       <nav className="-mx-4 flex gap-1.5 overflow-x-auto px-4" aria-label="Van wie">
@@ -98,7 +98,7 @@ export default async function ProgressPage({ searchParams }: { searchParams: Pro
             {muscles.map((m) => (
               <li key={m.muscle} className="grid grid-cols-[6.5rem_1fr_4rem] items-center gap-2 text-sm">
                 <span>{MUSCLE_LABEL[m.muscle]}</span>
-                <span className="relative h-3 rounded-full bg-steel">
+                <span className="relative h-3 rounded-full bg-line/70">
                   <span
                     className={`absolute inset-y-0 left-0 rounded-full ${m.pct >= 0 ? "bg-pin" : "bg-warn"}`}
                     style={{ width: `${(Math.abs(m.pct) / maxAbs) * 100}%` }}
@@ -112,7 +112,7 @@ export default async function ProgressPage({ searchParams }: { searchParams: Pro
       )}
 
       {selected && (
-        <section className="rounded-xl bg-steel p-4">
+        <section className="card p-4">
           <div className="flex items-start justify-between gap-3">
             <div>
               <h2 className="font-semibold">{EXERCISE_MAP[selected.id].name}</h2>
@@ -131,7 +131,7 @@ export default async function ProgressPage({ searchParams }: { searchParams: Pro
       <section>
         <h2 className="mb-3 font-semibold">Per oefening</h2>
         {exercises.length === 0 ? (
-          <p className="rounded-xl bg-steel p-4 text-sm text-mute">{mine ? "Log je eerste training, dan verschijnen je oefeningen hier." : "Nog geen trainingen gelogd."}</p>
+          <p className="card p-4 text-sm text-mute">{mine ? "Log je eerste training, dan verschijnen je oefeningen hier." : "Nog geen trainingen gelogd."}</p>
         ) : (
           <ul className="space-y-1.5">
             {exercises.map((e) => (

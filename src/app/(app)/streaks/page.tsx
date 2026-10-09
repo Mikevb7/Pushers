@@ -33,7 +33,7 @@ export default async function StreaksPage() {
   return (
     <div className="space-y-6">
       <header className="pt-2">
-        <h1 className="display text-6xl font-bold">Streaks</h1>
+        <h1 className="display text-6xl font-bold uppercase">Streaks</h1>
       </header>
 
       <HabitQuick
@@ -48,11 +48,11 @@ export default async function StreaksPage() {
       />
 
       <dl className="grid grid-cols-2 gap-2">
-        <div className="rounded-xl bg-steel p-3">
+        <div className="card p-3">
           <dt className="text-sm text-mute">Langste water-streak</dt>
           <dd className="display text-4xl font-bold">{longest(habits, waterOk)}</dd>
         </div>
-        <div className="rounded-xl bg-steel p-3">
+        <div className="card p-3">
           <dt className="text-sm text-mute">Langste creatine-streak</dt>
           <dd className="display text-4xl font-bold">{longest(habits, creaOk)}</dd>
         </div>

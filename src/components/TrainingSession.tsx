@@ -121,10 +121,10 @@ function SetForm({
     setBusy(false);
   }
 
-  const box = "w-full rounded-lg border border-line bg-floor px-2 py-2.5 text-center display text-3xl font-semibold focus:border-pin focus:outline-none";
+  const box = "w-full rounded-xl border border-line bg-steel px-2 py-2.5 text-center display text-3xl font-semibold focus:border-pin focus:outline-none";
 
   return (
-    <div className="rounded-lg border border-pin/60 bg-steel-2 p-3">
+    <div className="rounded-2xl border border-pin bg-pin-dim/60 p-3">
       <p className="mb-2 text-sm text-mute">Set {setNumber}</p>
       <div className="grid grid-cols-[1fr_auto_1fr] items-end gap-2">
         <label className="block">
@@ -147,7 +147,7 @@ function SetForm({
               type="button"
               onClick={() => setRir(r)}
               aria-pressed={rir === r}
-              className={`rounded-md py-2.5 font-semibold ${rir === r ? "bg-pin text-floor" : "bg-floor text-chalk"}`}
+              className={`rounded-md py-2.5 font-semibold ${rir === r ? "bg-pin-deep text-white" : "bg-steel text-chalk"}`}
             >
               {r === 3 ? "3+" : r}
             </button>
@@ -163,8 +163,8 @@ function SetForm({
           </label>
           {drop && (
             <div className="mt-2 grid grid-cols-2 gap-2">
-              <input inputMode="decimal" placeholder="drop kg" value={dropW} onChange={(e) => setDropW(e.target.value.replace(/[^\d.,]/g, ""))} className="rounded-lg border border-line bg-floor px-3 py-2" />
-              <input inputMode="numeric" placeholder="drop reps" value={dropR} onChange={(e) => setDropR(e.target.value.replace(/\D/g, ""))} className="rounded-lg border border-line bg-floor px-3 py-2" />
+              <input inputMode="decimal" placeholder="drop kg" value={dropW} onChange={(e) => setDropW(e.target.value.replace(/[^\d.,]/g, ""))} className="rounded-xl border border-line bg-steel px-3 py-2" />
+              <input inputMode="numeric" placeholder="drop reps" value={dropR} onChange={(e) => setDropR(e.target.value.replace(/\D/g, ""))} className="rounded-xl border border-line bg-steel px-3 py-2" />
             </div>
           )}
         </div>
@@ -174,7 +174,7 @@ function SetForm({
       <button
         onClick={save}
         disabled={!valid || busy}
-        className="mt-3 w-full rounded-lg bg-pin py-3 font-semibold text-floor disabled:bg-line disabled:text-mute"
+        className="mt-3 w-full rounded-full bg-pin py-3 font-semibold text-chalk disabled:bg-line disabled:text-mute"
       >
         {busy ? "Opslaan…" : rir === null ? "Kies eerst hoeveel je over had" : "Set opslaan"}
       </button>
@@ -212,15 +212,15 @@ function ExerciseBlock({
   const lastWeight = sets.length ? Number(sets[sets.length - 1].weight_kg) : (sug?.weight ?? null);
 
   return (
-    <section className={`rounded-xl bg-steel ${done ? "opacity-80" : ""}`}>
+    <section className={`card ${done ? "opacity-80" : ""}`}>
       <button onClick={() => setOpen((o) => !o)} className="flex w-full gap-3 p-3 text-left" aria-expanded={open}>
         <div className="relative size-16 shrink-0 overflow-hidden rounded-lg bg-floor">
           <Image src={ex.photo} alt="" fill sizes="64px" className="object-cover" />
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5">
-            {item.superset && <span className="rounded bg-pin-dim px-1.5 text-xs font-semibold text-pin">Superset {item.superset}</span>}
-            {item.coach && <Sparkles size={14} className="text-pin" aria-label="Aangepast door coach" />}
+            {item.superset && <span className="rounded bg-pin-dim px-1.5 text-xs font-semibold text-pin-deep">Superset {item.superset}</span>}
+            {item.coach && <Sparkles size={14} className="text-pin-deep" aria-label="Aangepast door coach" />}
           </div>
           <h3 className="font-semibold leading-tight">{ex.name}</h3>
           <p className="text-sm text-mute">
@@ -254,7 +254,7 @@ function ExerciseBlock({
               <li key={t}>{t}</li>
             ))}
           </ul>
-          <a href={videoUrl(ex)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 text-sm text-pin">
+          <a href={videoUrl(ex)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 text-sm text-pin-deep">
             Bekijk uitlegvideo&apos;s <ExternalLink size={14} />
           </a>
           {item.coach && <p className="rounded-lg bg-floor px-3 py-2 text-sm">Coach: {item.coach}</p>}
@@ -388,12 +388,12 @@ export function TrainingSession({ workoutId, day, startedAt, items, notes, info,
 
   return (
     <div className="space-y-4">
-      <header className="sticky top-0 z-20 -mx-4 flex items-center gap-3 border-b border-line bg-floor/95 px-4 py-3 backdrop-blur">
+      <header className="sticky top-0 z-20 -mx-4 flex items-center gap-3 border-b border-line bg-steel/95 px-4 py-3 backdrop-blur">
         <Link href="/" aria-label="Terug" className="p-1 text-mute">
           <ArrowLeft size={22} />
         </Link>
         <div className="flex-1">
-          <p className="display text-3xl font-bold">{DAY_LABEL[day]}</p>
+          <p className="display text-3xl font-bold uppercase">{DAY_LABEL[day]}</p>
         </div>
         <div className="text-right text-sm text-mute">
           <p>
@@ -402,7 +402,7 @@ export function TrainingSession({ workoutId, day, startedAt, items, notes, info,
           <Elapsed since={startedAt} />
         </div>
       </header>
-      <div className="h-1.5 overflow-hidden rounded-full bg-steel">
+      <div className="h-1.5 overflow-hidden rounded-full bg-line">
         <div className="h-full bg-pin transition-[width]" style={{ width: `${(totalDone / totalPlanned) * 100}%` }} />
       </div>
 
@@ -411,7 +411,7 @@ export function TrainingSession({ workoutId, day, startedAt, items, notes, info,
       {notes.length > 0 && (
         <div className="rounded-xl border border-pin/40 bg-pin-dim/30 p-3 text-sm">
           <p className="mb-1 flex items-center gap-1.5 font-semibold">
-            <Sparkles size={15} className="text-pin" /> Coach
+            <Sparkles size={15} className="text-pin-deep" /> Coach
           </p>
           {notes.map((n) => (
             <p key={n}>{n}</p>
@@ -449,7 +449,7 @@ export function TrainingSession({ workoutId, day, startedAt, items, notes, info,
           <SubmitButton
             disabled={pending || sets.length === 0 || sets.some((s) => s.id.startsWith("tmp-"))}
             pendingText="Afronden…"
-            className="w-full rounded-xl bg-pin py-4 text-xl font-semibold text-floor disabled:bg-line disabled:text-mute"
+            className="w-full rounded-full bg-pin py-4 text-xl font-semibold text-chalk disabled:bg-line disabled:text-mute"
           >
             Training afronden
           </SubmitButton>

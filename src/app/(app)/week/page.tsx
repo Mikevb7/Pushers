@@ -25,7 +25,7 @@ export default async function WeekPage() {
   return (
     <div className="space-y-6">
       <header className="pt-2">
-        <h1 className="display text-6xl font-bold">Week</h1>
+        <h1 className="display text-6xl font-bold uppercase">Week</h1>
         <p className="mt-2 text-mute">
           {week.gymDone} van {GYM_SESSIONS_PER_WEEK} gymtrainingen, cardio {week.cardioDone ? "gedaan" : "nog niet"}.
           {streak > 0 ? ` ${streak} ${streak === 1 ? "volle week" : "volle weken"} op rij.` : ""}
@@ -52,7 +52,7 @@ export default async function WeekPage() {
                 {d.workouts.length === 0 && <span className="text-sm text-mute/60">{d.key > today ? "" : "Rust"}</span>}
                 {d.workouts.map((w) => (
                   <div key={w.id} className="flex items-center gap-2">
-                    {w.day_type === "cardio" ? <HeartPulse size={16} className="text-go" /> : <Check size={16} className="text-pin" />}
+                    {w.day_type === "cardio" ? <HeartPulse size={16} className="text-go" /> : <Check size={16} className="text-pin-deep" />}
                     {w.day_type === "cardio" ? (
                       <span className="flex-1">
                         {w.cardio_description}
@@ -79,7 +79,7 @@ export default async function WeekPage() {
         ))}
       </ol>
 
-      <section className="rounded-xl bg-steel p-4">
+      <section className="card p-4">
         <h2 className="font-semibold">Training afvinken</h2>
         <p className="mt-1 text-sm text-mute">
           {DAY_LABEL[next]} gedaan zonder de app? Vink hem af, dan schuift de rotatie door. Er wordt dan geen progressie bijgehouden.
@@ -89,7 +89,7 @@ export default async function WeekPage() {
         </form>
       </section>
 
-      <section className="rounded-xl bg-steel p-4">
+      <section className="card p-4">
         <h2 className="font-semibold">Cardio toevoegen</h2>
         <form action={addCardio} className="mt-3 space-y-2">
           <input name="description" required placeholder="Wat heb je gedaan? Bijv. hardlopen, fietsen" className="w-full rounded-lg border border-line bg-floor px-3 py-2.5" />
@@ -105,7 +105,7 @@ export default async function WeekPage() {
         <ul className="space-y-1.5">
           {pastWeeks.map((w) => (
             <li key={w.start} className="flex items-center gap-3 rounded-lg bg-steel px-3 py-2.5 text-sm">
-              <span className="w-28 text-mute">Week van {formatDay(w.start).replace(/^\w+\.? /, "")}</span>
+              <span className="w-32 shrink-0 text-mute">Week van {formatDay(w.start).replace(/^\w+\.? /, "")}</span>
               <span className="flex flex-1 gap-1">
                 {Array.from({ length: GYM_SESSIONS_PER_WEEK }, (_, i) => (
                   <span key={i} className={`h-2.5 flex-1 rounded-sm ${i < w.gym ? "bg-pin" : "bg-floor"}`} />

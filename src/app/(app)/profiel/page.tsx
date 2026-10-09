@@ -7,7 +7,7 @@ export default async function ProfilePage() {
   return (
     <div className="space-y-6">
       <header className="pt-2">
-        <h1 className="display text-6xl font-bold">Profiel</h1>
+        <h1 className="display text-6xl font-bold uppercase">Profiel</h1>
         <p className="mt-1 text-sm text-mute">{user.email}</p>
       </header>
 
@@ -31,11 +31,11 @@ export default async function ProfilePage() {
             <input name="glass_ml" inputMode="numeric" defaultValue={profile.glass_ml} className={field} />
           </label>
         </div>
-        <button className="w-full rounded-xl bg-pin py-3.5 font-semibold text-floor">Opslaan</button>
+        <button className="w-full rounded-full bg-pin py-3.5 font-semibold text-chalk">Opslaan</button>
       </form>
 
       <form action={signOut}>
-        <button className="w-full rounded-xl bg-steel py-3 font-semibold text-mute">Uitloggen</button>
+        <button className="w-full card py-3 font-semibold text-mute">Uitloggen</button>
       </form>
     </div>
   );

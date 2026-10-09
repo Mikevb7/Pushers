@@ -33,7 +33,7 @@ export function HabitQuick({ water, goal, glass, creatine, creatineG, waterStrea
 
   return (
     <div className="space-y-3">
-      <div className="rounded-xl bg-steel p-4">
+      <div className="card p-4">
         <div className="flex items-baseline justify-between">
           <p className="font-semibold">Water</p>
           <p className="text-sm text-mute">
@@ -45,7 +45,7 @@ export function HabitQuick({ water, goal, glass, creatine, creatineG, waterStrea
           <span className="pb-1 text-mute">/ {liters(goal)} L</span>
           {reached && <Check className="mb-1.5 ml-1 text-go" size={22} aria-label="Doel gehaald" />}
         </div>
-        <div className="mt-3 h-3 overflow-hidden rounded-full bg-floor" role="progressbar" aria-valuenow={ml} aria-valuemax={goal}>
+        <div className="mt-3 h-3 overflow-hidden rounded-full bg-line/70" role="progressbar" aria-valuenow={ml} aria-valuemax={goal}>
           <div className={`h-full rounded-full transition-[width] ${reached ? "bg-go" : "bg-pin"}`} style={{ width: `${pct * 100}%` }} />
         </div>
         <div className="mt-3 flex gap-2">

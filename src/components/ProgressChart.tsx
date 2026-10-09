@@ -21,15 +21,15 @@ export function ProgressChart({ points }: { points: ChartPoint[] }) {
     <div className="h-52 w-full" role="img" aria-label="Geschatte kracht per training">
       <ResponsiveContainer>
         <LineChart data={points} margin={{ top: 8, right: 8, bottom: 0, left: -18 }}>
-          <CartesianGrid stroke="#3b4249" strokeDasharray="2 4" vertical={false} />
-          <XAxis dataKey="date" tickFormatter={short} tick={{ fill: "#9aa3ab", fontSize: 12 }} axisLine={false} tickLine={false} minTickGap={20} />
-          <YAxis tick={{ fill: "#9aa3ab", fontSize: 12 }} axisLine={false} tickLine={false} domain={["dataMin - 5", "dataMax + 5"]} tickFormatter={(v) => Math.round(v).toString()} />
+          <CartesianGrid stroke="#ded8d3" strokeDasharray="2 4" vertical={false} />
+          <XAxis dataKey="date" tickFormatter={short} tick={{ fill: "#676d68", fontSize: 12 }} axisLine={false} tickLine={false} minTickGap={20} />
+          <YAxis tick={{ fill: "#676d68", fontSize: 12 }} axisLine={false} tickLine={false} domain={["dataMin - 5", "dataMax + 5"]} tickFormatter={(v) => Math.round(v).toString()} />
           <Tooltip
-            contentStyle={{ background: "#31373d", border: "none", borderRadius: 8, color: "#eceae4" }}
+            contentStyle={{ background: "#1e2320", border: "none", borderRadius: 8, color: "#ffffff" }}
             labelFormatter={(d) => short(String(d))}
             formatter={(v, _n, item) => [`${(item.payload as ChartPoint).label} (≈ ${Math.round(Number(v))} kg 1RM)`, "Beste set"]}
           />
-          <Line type="monotone" dataKey="e1rm" stroke="#ff7a1a" strokeWidth={2.5} dot={{ r: 3, fill: "#ff7a1a" }} activeDot={{ r: 5 }} />
+          <Line type="monotone" dataKey="e1rm" stroke="#4b7710" strokeWidth={2.5} dot={{ r: 3, fill: "#4b7710" }} activeDot={{ r: 5 }} />
         </LineChart>
       </ResponsiveContainer>
     </div>

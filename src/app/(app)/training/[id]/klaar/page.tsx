@@ -28,7 +28,7 @@ export default async function DonePage({ params }: { params: Promise<{ id: strin
     <div className="space-y-6 pt-6">
       <div>
         <p className="text-mute">Klaar met</p>
-        <h1 className="display text-[6rem] font-bold">{DAY_LABEL[workout.day_type]}</h1>
+        <h1 className="display text-[6rem] font-bold uppercase">{DAY_LABEL[workout.day_type]}</h1>
       </div>
 
       <dl className="grid grid-cols-3 gap-2">
@@ -37,7 +37,7 @@ export default async function DonePage({ params }: { params: Promise<{ id: strin
           ["Volume", `${fmt(volume / 1000)} t`],
           ["Tijd", minutes !== null ? `${minutes} min` : "–"],
         ].map(([k, v]) => (
-          <div key={k} className="rounded-xl bg-steel p-3">
+          <div key={k} className="card p-3">
             <dt className="text-sm text-mute">{k}</dt>
             <dd className="display text-3xl font-bold">{v}</dd>
           </div>
@@ -47,7 +47,7 @@ export default async function DonePage({ params }: { params: Promise<{ id: strin
       {prs.length > 0 && (
         <section className="rounded-xl border border-pin/50 bg-pin-dim/30 p-4">
           <h2 className="mb-2 flex items-center gap-2 font-semibold">
-            <Trophy size={18} className="text-pin" /> {prs.length === 1 ? "Nieuw record" : `${prs.length} nieuwe records`}
+            <Trophy size={18} className="text-pin-deep" /> {prs.length === 1 ? "Nieuw record" : `${prs.length} nieuwe records`}
           </h2>
           <ul className="space-y-1">
             {prs.map((p) => (
@@ -74,7 +74,7 @@ export default async function DonePage({ params }: { params: Promise<{ id: strin
         {workout.quick_check && <p className="text-mute">Afgevinkt zonder sets.</p>}
       </section>
 
-      <Link href="/" className="block rounded-xl bg-pin py-4 text-center text-xl font-semibold text-floor">
+      <Link href="/" className="block rounded-full bg-pin py-4 text-center text-xl font-semibold text-chalk">
         Terug naar vandaag
       </Link>
     </div>

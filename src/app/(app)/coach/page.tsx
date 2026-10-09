@@ -79,7 +79,7 @@ export default async function CoachPage() {
   return (
     <div className="space-y-6">
       <header className="pt-2">
-        <h1 className="display text-6xl font-bold">Coach</h1>
+        <h1 className="display text-6xl font-bold uppercase">Coach</h1>
         <p className="mt-2 text-mute">
           Kijkt naar je kilo&apos;s, reps en hoeveel je over had, en past je schema aan waar je achterloopt. Het basisschema blijft staan.
         </p>
@@ -95,7 +95,7 @@ export default async function CoachPage() {
 
       <section className="space-y-3">
         {advice.length === 0 ? (
-          <p className="rounded-xl bg-steel p-4 text-sm text-mute">Nog geen advies. Vraag je eerste analyse aan.</p>
+          <p className="card p-4 text-sm text-mute">Nog geen advies. Vraag je eerste analyse aan.</p>
         ) : (
           advice.map((a) => <AdviceCard key={a.id} a={a} active={a.valid_until >= today} />)
         )}

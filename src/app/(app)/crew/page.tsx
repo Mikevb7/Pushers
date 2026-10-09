@@ -59,7 +59,7 @@ export default async function CrewPage({ searchParams }: { searchParams: Promise
   return (
     <div className="space-y-7">
       <header className="pt-2">
-        <h1 className="display text-6xl font-bold">Crew</h1>
+        <h1 className="display text-6xl font-bold uppercase">Crew</h1>
       </header>
 
       <section>
@@ -80,7 +80,7 @@ export default async function CrewPage({ searchParams }: { searchParams: Promise
                 href={`/progressie?${b.p.id === user.id ? "" : `user=${b.p.id}&`}periode=${period}`}
                 className={`flex items-center gap-3 rounded-lg px-3 py-3 ${b.p.id === user.id ? "bg-steel-2" : "bg-steel"}`}
               >
-                <span className={`display w-6 text-2xl font-bold ${i === 0 && b.pct !== null ? "text-pin" : "text-mute"}`}>{i + 1}</span>
+                <span className={`display w-6 text-2xl font-bold ${i === 0 && b.pct !== null ? "text-pin-deep" : "text-mute"}`}>{i + 1}</span>
                 <span className="flex-1">
                   <span className="block font-semibold">{b.p.display_name}</span>
                   <span className="flex flex-wrap gap-x-3 text-xs text-mute">
@@ -115,11 +115,11 @@ export default async function CrewPage({ searchParams }: { searchParams: Promise
       <section>
         <h2 className="mb-3 font-semibold">Afgelopen twee weken</h2>
         {feed.length === 0 ? (
-          <p className="rounded-xl bg-steel p-4 text-sm text-mute">Nog niks gebeurd. Wie gaat er als eerste?</p>
+          <p className="card p-4 text-sm text-mute">Nog niks gebeurd. Wie gaat er als eerste?</p>
         ) : (
           <ul className="space-y-2">
             {feed.map(({ w, prs, sets }) => (
-              <li key={w.id} className="rounded-xl bg-steel p-3">
+              <li key={w.id} className="card p-3">
                 <div className="flex items-baseline gap-2">
                   {w.day_type === "cardio" && <HeartPulse size={15} className="self-center text-go" />}
                   <p className="flex-1">
@@ -134,7 +134,7 @@ export default async function CrewPage({ searchParams }: { searchParams: Promise
                   <ul className="mt-2 space-y-1">
                     {prs.slice(0, 2).map((p) => (
                       <li key={p.exerciseId} className="flex items-center gap-2 text-sm">
-                        <Trophy size={14} className="shrink-0 text-pin" />
+                        <Trophy size={14} className="shrink-0 text-pin-deep" />
                         Record {EXERCISE_MAP[p.exerciseId]?.name}: {fmt(p.weight)} kg × {p.reps}
                       </li>
                     ))}

@@ -28,7 +28,7 @@ export function CoachButtons({ nextDayLabel }: { nextDayLabel: string }) {
       <button
         onClick={() => ask("today")}
         disabled={!!busy}
-        className="flex w-full items-center justify-center gap-2 rounded-xl bg-pin py-3.5 font-semibold text-floor disabled:opacity-60"
+        className="flex w-full items-center justify-center gap-2 rounded-full bg-pin py-3.5 font-semibold text-chalk disabled:opacity-60"
       >
         <Sparkles size={18} />
         {busy === "today" ? "Coach denkt na…" : `Advies voor ${nextDayLabel}`}

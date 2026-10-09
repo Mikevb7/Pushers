@@ -1,36 +1,33 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Pushers
 
-## Getting Started
+Trainingsapp voor de crew: vast Push / Pull / Legs / Upper-schema met de apparaten van Sportcentrum Hierden, sets loggen met reps in reserve, progressive overload, progressie in %, crew-leaderboard, water- en creatine-streaks en een AI-coach.
 
-First, run the development server:
+Next.js 15 (App Router) + Supabase + Claude API. Installeerbaar als app op je telefoon (PWA).
+
+## Opzetten
+
+1. **Database**: open in Supabase de SQL Editor, plak `supabase/schema.sql`, verander `VERANDER-MIJ` in jullie eigen uitnodigingscode en klik Run.
+2. **E-mailbevestiging uit**: Supabase → Authentication → Sign In / Providers → Email → zet *Confirm email* uit. Anders moet iedereen eerst een mail bevestigen (en de gratis mailer heeft een lage limiet).
+3. **Vercel**: importeer deze repo en zet de environment variables uit `.env.example`:
+   - `NEXT_PUBLIC_SUPABASE_URL` en `NEXT_PUBLIC_SUPABASE_ANON_KEY` (Supabase → Project Settings → API)
+   - `ANTHROPIC_API_KEY` (console.anthropic.com), alleen in Vercel
+4. **Op je telefoon**: open de site, dan *Deel → Zet op beginscherm* (iPhone) of *Installeren* (Android).
+
+## Lokaal draaien
 
 ```bash
+npm install
+cp .env.example .env.local   # vul de waarden in
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm test                     # logica-tests
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Waar zit wat
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- `src/lib/exercises.ts`: alle oefeningen met foto, opstelling en tips
+- `src/lib/schedule.ts`: het basisschema (sets, rep-ranges, supersets)
+- `src/lib/progression.ts`: regels voor progressive overload
+- `src/lib/stats.ts`: % sterker (geschatte 1RM), records, volume
+- `src/lib/rotation.ts`: volgende training, weekstatus, streaks
+- `src/lib/coach.ts` + `src/app/api/coach/route.ts`: AI-coach
+- `supabase/schema.sql`: tabellen en beveiliging (iedereen ziet elkaars data, past alleen zijn eigen data aan)

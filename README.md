@@ -6,7 +6,7 @@ Next.js 15 (App Router) + Supabase + Claude API. Installeerbaar als app op je te
 
 ## Opzetten
 
-1. **Database**: open in Supabase de SQL Editor, plak `supabase/schema.sql`, verander `VERANDER-MIJ` in jullie eigen uitnodigingscode en klik Run.
+1. **Database**: open in Supabase de SQL Editor, plak `supabase/schema.sql`, en klik Run. De uitnodigingscode is `pushers2026`.
 2. **E-mailbevestiging uit**: Supabase → Authentication → Sign In / Providers → Email → zet *Confirm email* uit. Anders moet iedereen eerst een mail bevestigen (en de gratis mailer heeft een lage limiet).
 3. **Vercel**: importeer deze repo en zet de environment variables uit `.env.example`:
    - `NEXT_PUBLIC_SUPABASE_URL` en `NEXT_PUBLIC_SUPABASE_ANON_KEY` (Supabase → Project Settings → API)

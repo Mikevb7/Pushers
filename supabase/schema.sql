@@ -1,7 +1,7 @@
 -- ============================================================
 -- Pushers – database
 -- Plak dit hele bestand in Supabase > SQL Editor > New query > Run.
--- Pas eerst de uitnodigingscode hieronder aan.
+-- Uitnodigingscode: pushers2026 (aan te passen in de regel met 'invite_code').
 -- ============================================================
 
 create extension if not exists pgcrypto;
@@ -16,7 +16,7 @@ create table if not exists private.config (
 );
 
 insert into private.config (key, value)
-values ('invite_code', 'VERANDER-MIJ')
+values ('invite_code', 'pushers2026')
 on conflict (key) do update set value = excluded.value;
 
 -- ---------- Profielen ----------

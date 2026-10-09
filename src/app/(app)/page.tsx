@@ -8,6 +8,7 @@ import { formatPct, overallProgress } from "@/lib/stats";
 import { planFor } from "@/lib/plan";
 import { startWorkout } from "@/app/actions";
 import { HabitQuick } from "@/components/HabitQuick";
+import { SubmitButton } from "@/components/SubmitButton";
 
 export default async function Home() {
   const { supabase, user, profile } = await requireMe();
@@ -67,9 +68,9 @@ export default async function Home() {
         )}
 
         <form action={startWorkout.bind(null, startDay)} className="mt-5">
-          <button className="w-full rounded-xl bg-pin py-4 text-xl font-semibold text-floor active:brightness-95">
+          <SubmitButton pendingText="Training openen…" className="w-full rounded-xl bg-pin py-4 text-xl font-semibold text-floor active:brightness-95">
             {openToday ? `Ga verder met ${DAY_LABEL[startDay]}` : `Start ${DAY_LABEL[startDay]}`}
-          </button>
+          </SubmitButton>
         </form>
       </section>
 

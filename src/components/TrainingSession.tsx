@@ -10,6 +10,7 @@ import type { PlannedItem } from "@/lib/plan";
 import type { Suggestion } from "@/lib/progression";
 import type { SetRow } from "@/lib/types";
 import { deleteSet, discardWorkout, finishWorkout, logSet } from "@/app/actions";
+import { SubmitButton } from "@/components/SubmitButton";
 
 export interface ExerciseInfo {
   suggestion: Suggestion;
@@ -349,16 +350,40 @@ export function TrainingSession({ workoutId, day, startedAt, items, notes, info,
     chosen !== null && sets.filter((s) => s.exercise_id === (swaps[chosen] ?? items[chosen].exerciseId)).length < items[chosen].sets;
   const activeIndex = chosen !== null && chosenOpen ? chosen : firstOpen;
 
+  const [saveError, setSaveError] = useState<string | null>(null);
+
+  // Optimistisch: de set staat direct in beeld, het opslaan gebeurt op de achtergrond.
   async function onLog(exerciseId: string, setNumber: number, v: { weight: number; reps: number; rir: number | null; drop: { weight: number; reps: number } | null }) {
-    const row = await logSet({ workoutId, exerciseId, setNumber, ...v });
-    setSets((prev) => [...prev, row as SetRow]);
-    const ex = EXERCISE_MAP[exerciseId];
-    setRest(ex.isolation ? 90 : 150);
+    const tempId = `tmp-${Date.now()}`;
+    const temp: SetRow = {
+      id: tempId,
+      workout_id: workoutId,
+      user_id: "",
+      exercise_id: exerciseId,
+      set_number: setNumber,
+      weight_kg: v.weight,
+      reps: v.reps,
+      rir: v.rir,
+      is_drop: !!v.drop,
+      drop_weight_kg: v.drop?.weight ?? null,
+      drop_reps: v.drop?.reps ?? null,
+      created_at: new Date().toISOString(),
+    };
+    setSaveError(null);
+    setSets((prev) => [...prev, temp]);
+    setRest(EXERCISE_MAP[exerciseId].isolation ? 90 : 150);
+    try {
+      const row = await logSet({ workoutId, exerciseId, setNumber, ...v });
+      setSets((prev) => prev.map((s) => (s.id === tempId ? (row as SetRow) : s)));
+    } catch {
+      setSets((prev) => prev.filter((s) => s.id !== tempId));
+      setSaveError("Set niet opgeslagen. Check je verbinding en vul hem opnieuw in.");
+    }
   }
 
   function onDelete(id: string) {
     setSets((prev) => prev.filter((s) => s.id !== id));
-    start(() => deleteSet(id));
+    if (!id.startsWith("tmp-")) start(() => deleteSet(id));
   }
 
   return (
@@ -380,6 +405,8 @@ export function TrainingSession({ workoutId, day, startedAt, items, notes, info,
       <div className="h-1.5 overflow-hidden rounded-full bg-steel">
         <div className="h-full bg-pin transition-[width]" style={{ width: `${(totalDone / totalPlanned) * 100}%` }} />
       </div>
+
+      {saveError && <p className="rounded-lg border border-warn/40 bg-warn/10 px-3 py-2.5 text-sm">{saveError}</p>}
 
       {notes.length > 0 && (
         <div className="rounded-xl border border-pin/40 bg-pin-dim/30 p-3 text-sm">
@@ -419,9 +446,13 @@ export function TrainingSession({ workoutId, day, startedAt, items, notes, info,
           className="w-full rounded-lg border border-line bg-steel px-3 py-2.5"
         />
         <form action={finishWorkout.bind(null, workoutId, note)}>
-          <button disabled={pending || sets.length === 0} className="w-full rounded-xl bg-pin py-4 text-xl font-semibold text-floor disabled:bg-line disabled:text-mute">
+          <SubmitButton
+            disabled={pending || sets.length === 0 || sets.some((s) => s.id.startsWith("tmp-"))}
+            pendingText="Afronden…"
+            className="w-full rounded-xl bg-pin py-4 text-xl font-semibold text-floor disabled:bg-line disabled:text-mute"
+          >
             Training afronden
-          </button>
+          </SubmitButton>
         </form>
         <form
           action={discardWorkout.bind(null, workoutId)}

@@ -14,9 +14,8 @@ const DAILY_LIMIT = 6;
 
 export async function POST(req: Request) {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { data: auth } = await supabase.auth.getClaims();
+  const user = auth?.claims?.sub ? { id: auth.claims.sub } : null;
   if (!user) return NextResponse.json({ error: "Niet ingelogd" }, { status: 401 });
   if (!process.env.ANTHROPIC_API_KEY) {
     return NextResponse.json({ error: "De coach is nog niet ingesteld: ANTHROPIC_API_KEY ontbreekt in Vercel." }, { status: 503 });

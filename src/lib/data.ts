@@ -5,12 +5,18 @@ import { addDays, dayKey } from "./dates";
 import type { DatedSet } from "./stats";
 import type { CoachAdvice, HabitLog, Profile, SetRow, Workout } from "./types";
 
-export async function requireMe() {
+/** Ingelogde gebruiker, lokaal gecontroleerd via de JWT (snel, geen netwerkrondje). */
+export async function requireUser() {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
+  const { data } = await supabase.auth.getClaims();
+  const claims = data?.claims;
+  if (!claims?.sub) redirect("/login");
+  const user = { id: claims.sub as string, email: (claims.email as string | undefined) ?? null };
+  return { supabase, user };
+}
+
+export async function requireMe() {
+  const { supabase, user } = await requireUser();
   const { data: profile } = await supabase.from("profiles").select("*").eq("id", user.id).single<Profile>();
   if (!profile) redirect("/login");
   return { supabase, user, profile };

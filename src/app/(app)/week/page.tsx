@@ -5,6 +5,7 @@ import { addDays, dayKey, formatDay, weekStart } from "@/lib/dates";
 import { DAY_LABEL, GYM_SESSIONS_PER_WEEK } from "@/lib/schedule";
 import { nextGymDay, trainingAdvice, weekStatus, weekStreak } from "@/lib/rotation";
 import { addCardio, quickCheck, removeWorkout } from "@/app/actions";
+import { SubmitButton } from "@/components/SubmitButton";
 
 export default async function WeekPage() {
   const { supabase, user } = await requireMe();
@@ -84,7 +85,7 @@ export default async function WeekPage() {
           {DAY_LABEL[next]} gedaan zonder de app? Vink hem af, dan schuift de rotatie door. Er wordt dan geen progressie bijgehouden.
         </p>
         <form action={quickCheck.bind(null, next)} className="mt-3">
-          <button className="w-full rounded-lg bg-steel-2 py-3 font-semibold">{DAY_LABEL[next]} afvinken</button>
+          <SubmitButton pendingText="Afvinken…" className="w-full rounded-lg bg-steel-2 py-3 font-semibold">{DAY_LABEL[next]} afvinken</SubmitButton>
         </form>
       </section>
 
@@ -94,7 +95,7 @@ export default async function WeekPage() {
           <input name="description" required placeholder="Wat heb je gedaan? Bijv. hardlopen, fietsen" className="w-full rounded-lg border border-line bg-floor px-3 py-2.5" />
           <div className="flex gap-2">
             <input name="minutes" inputMode="numeric" placeholder="Minuten" className="w-28 rounded-lg border border-line bg-floor px-3 py-2.5" />
-            <button className="flex-1 rounded-lg bg-steel-2 py-2.5 font-semibold">Cardio opslaan</button>
+            <SubmitButton pendingText="Opslaan…" className="flex-1 rounded-lg bg-steel-2 py-2.5 font-semibold">Cardio opslaan</SubmitButton>
           </div>
         </form>
       </section>

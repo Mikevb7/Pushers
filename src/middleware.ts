@@ -16,9 +16,9 @@ export async function middleware(request: NextRequest) {
     },
   });
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // getClaims controleert de sessie lokaal (JWT), zonder extra netwerkrondje naar Supabase.
+  const { data } = await supabase.auth.getClaims();
+  const user = data?.claims?.sub ? { id: data.claims.sub } : null;
 
   const isLogin = request.nextUrl.pathname.startsWith("/login");
   if (!user && !isLogin && !request.nextUrl.pathname.startsWith("/api")) {

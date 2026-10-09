@@ -61,6 +61,9 @@ create trigger on_auth_user_created
   after insert on auth.users
   for each row execute function public.handle_new_user();
 
+-- Alleen de trigger mag deze functie gebruiken, niet de API.
+revoke execute on function public.handle_new_user() from public, anon, authenticated;
+
 -- ---------- Trainingen ----------
 create table if not exists public.workouts (
   id uuid primary key default gen_random_uuid(),

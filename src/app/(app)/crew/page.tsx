@@ -50,7 +50,7 @@ export default async function CrewPage({ searchParams }: { searchParams: Promise
     .map((w) => ({
       w,
       prs: prs.filter((p) => p.workoutId === w.id),
-      sets: sets.filter((s) => s.workout_id === w.id && !s.is_drop).length,
+      sets: sets.filter((s) => s.workout_id === w.id).length,
     }))
     .sort((a, b) => b.w.completed_at!.localeCompare(a.w.completed_at!))
     .slice(0, 30);

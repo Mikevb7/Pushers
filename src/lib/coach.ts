@@ -30,7 +30,7 @@ export function buildCoachContext(input: {
   const exercises = exerciseIdsIn(sets).map((id) => {
     const ex = EXERCISE_MAP[id];
     const series = exerciseSeries(sets, id, bw);
-    const sessions = sessionsFor(id, sets.filter((s) => !s.is_drop), dates);
+    const sessions = sessionsFor(id, sets, dates);
     const item = ROTATION.flatMap((d) => PLAN[d].items).find((i) => i.exerciseId === id);
     return {
       id,

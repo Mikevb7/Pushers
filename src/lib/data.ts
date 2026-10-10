@@ -81,3 +81,28 @@ export async function loadLatestAdvice(supabase: Supa, userId: string): Promise<
     .limit(10);
   return (data ?? []) as CoachAdvice[];
 }
+
+/**
+ * Trainingen die open zijn blijven staan (vergeten op "afronden" te drukken) worden
+ * na 4 uur automatisch afgerond op het tijdstip van de laatste set. Lege trainingen
+ * van meer dan een dag oud worden opgeruimd.
+ */
+export async function closeStaleWorkouts(supabase: Supa, userId: string) {
+  const cutoff = new Date(Date.now() - 4 * 3600 * 1000).toISOString();
+  const { data: open } = await supabase
+    .from("workouts")
+    .select("id, started_at, sets(created_at)")
+    .eq("user_id", userId)
+    .is("completed_at", null)
+    .lt("started_at", cutoff);
+  for (const w of (open ?? []) as { id: string; started_at: string; sets: { created_at: string }[] }[]) {
+    const times = w.sets.map((s) => s.created_at).sort();
+    const lastActivity = times.at(-1) ?? w.started_at;
+    if (lastActivity > cutoff) continue; // nog bezig
+    if (times.length) {
+      await supabase.from("workouts").update({ started_at: times[0], completed_at: times.at(-1) }).eq("id", w.id);
+    } else if (w.started_at < new Date(Date.now() - 24 * 3600 * 1000).toISOString()) {
+      await supabase.from("workouts").delete().eq("id", w.id);
+    }
+  }
+}

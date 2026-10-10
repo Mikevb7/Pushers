@@ -3,13 +3,13 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useMemo, useState, useTransition } from "react";
-import { ArrowLeft, ChevronDown, ExternalLink, Plus, Repeat, Sparkles, Trash2, X } from "lucide-react";
+import { ArrowLeft, Check, ChevronDown, ExternalLink, Pencil, Plus, Repeat, Sparkles, Trash2 } from "lucide-react";
 import { EXERCISE_MAP, videoUrl, type Exercise } from "@/lib/exercises";
 import { DAY_LABEL, type GymDay } from "@/lib/schedule";
 import type { PlannedItem } from "@/lib/plan";
 import type { Suggestion } from "@/lib/progression";
 import type { SetRow } from "@/lib/types";
-import { deleteSet, discardWorkout, finishWorkout, logSet } from "@/app/actions";
+import { deleteSet, discardWorkout, finishWorkout, logSet, updateSet } from "@/app/actions";
 import { SubmitButton } from "@/components/SubmitButton";
 
 export interface ExerciseInfo {
@@ -25,6 +25,8 @@ interface Props {
   notes: string[];
   info: Record<string, ExerciseInfo>;
   logged: SetRow[];
+  preferred: Record<number, string>; // per oefening: de variant die je de vorige keer koos
+  editMode: boolean; // afgeronde training achteraf aanpassen
 }
 
 const unitLabel = (ex: Exercise) =>
@@ -184,6 +186,77 @@ function SetForm({
   );
 }
 
+function LoggedSet({ s, ex, onDelete, onUpdate }: { s: SetRow; ex: Exercise; onDelete: (id: string) => void; onUpdate: (row: SetRow) => Promise<boolean> }) {
+  const [editing, setEditing] = useState(false);
+  const [weight, setWeight] = useState(fmt(Number(s.weight_kg)));
+  const [reps, setReps] = useState(String(s.reps));
+  const [rir, setRir] = useState<number | null>(s.rir);
+  const [busy, setBusy] = useState(false);
+  const pendingSave = s.id.startsWith("tmp-");
+
+  if (editing) {
+    const box = "w-full rounded-xl border border-line bg-steel px-2 py-2 text-center display text-2xl font-semibold focus:border-pin-deep focus:outline-none";
+    return (
+      <div className="space-y-2 rounded-2xl border border-pin bg-pin-dim/60 p-3">
+        <p className="text-sm text-mute">Set {s.set_number} aanpassen</p>
+        <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
+          <input inputMode="decimal" value={weight} onChange={(e) => setWeight(e.target.value.replace(/[^\d.,]/g, ""))} className={box} aria-label={unitLabel(ex)} />
+          <span className="text-mute">×</span>
+          <input inputMode="numeric" value={reps} onChange={(e) => setReps(e.target.value.replace(/\D/g, ""))} className={box} aria-label="reps" />
+        </div>
+        <div className="grid grid-cols-4 gap-1.5">
+          {RIR.map((r) => (
+            <button key={r} type="button" onClick={() => setRir(r)} aria-pressed={rir === r} className={`rounded-md py-2 text-sm font-semibold ${rir === r ? "bg-pin-deep text-white" : "bg-steel text-chalk"}`}>
+              {r === 3 ? "3+" : r} over
+            </button>
+          ))}
+        </div>
+        <div className="flex gap-2">
+          <button
+            disabled={busy || !weight || !Number(reps)}
+            onClick={async () => {
+              setBusy(true);
+              const ok = await onUpdate({ ...s, weight_kg: parse(weight), reps: Number(reps), rir });
+              setBusy(false);
+              if (ok) setEditing(false);
+            }}
+            className="flex flex-1 items-center justify-center gap-1.5 rounded-full bg-pin py-2.5 font-semibold text-chalk disabled:opacity-60"
+          >
+            <Check size={16} /> {busy ? "Opslaan…" : "Opslaan"}
+          </button>
+          <button onClick={() => setEditing(false)} className="rounded-full bg-steel px-4 font-semibold text-mute">
+            Annuleer
+          </button>
+          <button onClick={() => onDelete(s.id)} aria-label={`Set ${s.set_number} verwijderen`} className="rounded-full bg-steel px-3 text-warn">
+            <Trash2 size={16} />
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      disabled={pendingSave}
+      onClick={() => setEditing(true)}
+      className="flex w-full items-center gap-3 rounded-lg bg-floor px-3 py-2 text-left"
+      aria-label={`Set ${s.set_number} aanpassen`}
+    >
+      <span className="w-10 text-sm text-mute">Set {s.set_number}</span>
+      <span className="display flex-1 text-2xl font-semibold">
+        {ex.plates ? <span className="text-base text-mute">plaat </span> : null}
+        {fmt(Number(s.weight_kg))} {ex.plates ? null : <span className="text-base text-mute">kg</span>} × {s.reps}
+      </span>
+      <span className="text-xs text-mute">
+        {pendingSave ? "opslaan…" : s.rir === null ? "" : s.rir === 3 ? "3+ over" : `${s.rir} over`}
+        {s.is_drop ? ", + drop" : ""}
+      </span>
+      <Pencil size={14} className="text-mute" aria-hidden />
+    </button>
+  );
+}
+
 function ExerciseBlock({
   item,
   exerciseId,
@@ -192,9 +265,11 @@ function ExerciseBlock({
   onSwap,
   onLog,
   onDelete,
+  onUpdate,
   active,
   onActivate,
 }: {
+  onUpdate: (row: SetRow) => Promise<boolean>;
   active: boolean;
   onActivate: () => void;
   item: PlannedItem;
@@ -208,6 +283,7 @@ function ExerciseBlock({
   const ex = EXERCISE_MAP[exerciseId];
   const [open, setOpen] = useState(false);
   const [extra, setExtra] = useState(0);
+  const [picking, setPicking] = useState(false);
   const target = Math.max(item.sets + extra, sets.length);
   const done = sets.length >= item.sets;
   const sug = info?.suggestion;
@@ -260,46 +336,42 @@ function ExerciseBlock({
             Bekijk uitlegvideo&apos;s <ExternalLink size={14} />
           </a>
           {item.coach && <p className="rounded-lg bg-floor px-3 py-2 text-sm">Coach: {item.coach}</p>}
-          {ex.alternatives.length > 0 && sets.length === 0 && (
-            <div>
-              <p className="mb-1.5 flex items-center gap-1.5 text-sm text-mute">
-                <Repeat size={14} /> Apparaat bezet? Wissel naar:
-              </p>
-              <div className="flex flex-wrap gap-1.5">
-                {[item.exerciseId, ...EXERCISE_MAP[item.exerciseId].alternatives]
-                  .filter((a) => a !== exerciseId)
-                  .map((a) => (
-                    <button key={a} onClick={() => onSwap(a)} className="rounded-full bg-steel-2 px-3 py-1.5 text-sm">
-                      {EXERCISE_MAP[a].name}
-                    </button>
-                  ))}
-              </div>
-            </div>
-          )}
         </div>
       )}
 
       <div className="space-y-2 px-3 pb-3">
+        {sets.length === 0 && EXERCISE_MAP[item.exerciseId].alternatives.length > 0 && (
+          <div>
+            <button type="button" onClick={() => setPicking((p) => !p)} className="flex items-center gap-1.5 text-sm font-medium text-pin-deep" aria-expanded={picking}>
+              <Repeat size={14} /> Ander apparaat of oefening
+            </button>
+            {picking && (
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {[item.exerciseId, ...EXERCISE_MAP[item.exerciseId].alternatives]
+                  .filter((a) => a !== exerciseId)
+                  .map((a) => (
+                    <button
+                      key={a}
+                      onClick={() => {
+                        onSwap(a);
+                        setPicking(false);
+                      }}
+                      className="rounded-full bg-steel-2 px-3 py-1.5 text-sm"
+                    >
+                      {EXERCISE_MAP[a].name}
+                    </button>
+                  ))}
+              </div>
+            )}
+          </div>
+        )}
         {sug && sets.length === 0 && (
           <p className={`rounded-lg px-3 py-2 text-sm ${sug.kind === "increase" ? "bg-go/15 text-go" : sug.kind === "stall" ? "bg-warn/10 text-warn" : "bg-floor text-chalk"}`}>
             {sug.text}
           </p>
         )}
-        {sets.map((s) => (
-          <div key={s.id} className="flex items-center gap-3 rounded-lg bg-floor px-3 py-2">
-            <span className="w-10 text-sm text-mute">Set {s.set_number}</span>
-            <span className="display flex-1 text-2xl font-semibold">
-              {ex.plates ? <span className="text-base text-mute">plaat </span> : null}
-              {fmt(Number(s.weight_kg))} {ex.plates ? null : <span className="text-base text-mute">kg</span>} × {s.reps}
-            </span>
-            <span className="text-xs text-mute">
-              {s.rir === null ? "" : s.rir === 3 ? "3+ over" : `${s.rir} over`}
-              {s.is_drop ? ", + drop" : ""}
-            </span>
-            <button onClick={() => onDelete(s.id)} aria-label={`Set ${s.set_number} verwijderen`} className="p-1 text-mute">
-              <X size={16} />
-            </button>
-          </div>
+        {sets.map((row) => (
+          <LoggedSet key={row.id} s={row} ex={ex} onDelete={onDelete} onUpdate={onUpdate} />
         ))}
         {sets.length < target && !active && (
           <button onClick={onActivate} className="w-full rounded-lg bg-steel-2 py-2.5 text-sm font-semibold">
@@ -326,7 +398,7 @@ function ExerciseBlock({
   );
 }
 
-export function TrainingSession({ workoutId, day, startedAt, items, notes, info, logged }: Props) {
+export function TrainingSession({ workoutId, day, startedAt, items, notes, info, logged, preferred, editMode }: Props) {
   const [sets, setSets] = useState<SetRow[]>(logged);
   const [swaps, setSwaps] = useState<Record<number, string>>(() => {
     // Als er al sets van een alternatief zijn gelogd, toon dat alternatief.
@@ -334,6 +406,7 @@ export function TrainingSession({ workoutId, day, startedAt, items, notes, info,
     items.forEach((it, i) => {
       const alt = [it.exerciseId, ...EXERCISE_MAP[it.exerciseId].alternatives].find((a) => logged.some((s) => s.exercise_id === a));
       if (alt && alt !== it.exerciseId) out[i] = alt;
+      else if (!alt && preferred[i]) out[i] = preferred[i];
     });
     return out;
   });
@@ -374,13 +447,25 @@ export function TrainingSession({ workoutId, day, startedAt, items, notes, info,
     };
     setSaveError(null);
     setSets((prev) => [...prev, temp]);
-    setRest(EXERCISE_MAP[exerciseId].isolation ? 90 : 150);
+    if (!editMode) setRest(EXERCISE_MAP[exerciseId].isolation ? 90 : 150);
     try {
       const row = await logSet({ workoutId, exerciseId, setNumber, ...v });
       setSets((prev) => prev.map((s) => (s.id === tempId ? (row as SetRow) : s)));
     } catch {
       setSets((prev) => prev.filter((s) => s.id !== tempId));
       setSaveError("Set niet opgeslagen. Check je verbinding en vul hem opnieuw in.");
+    }
+  }
+
+  async function onUpdate(row: SetRow): Promise<boolean> {
+    try {
+      const saved = await updateSet({ id: row.id, weight: Number(row.weight_kg), reps: row.reps, rir: row.rir });
+      setSets((prev) => prev.map((x) => (x.id === row.id ? (saved as SetRow) : x)));
+      setSaveError(null);
+      return true;
+    } catch {
+      setSaveError("Aanpassen mislukt. Check je verbinding en probeer opnieuw.");
+      return false;
     }
   }
 
@@ -397,12 +482,13 @@ export function TrainingSession({ workoutId, day, startedAt, items, notes, info,
         </Link>
         <div className="flex-1">
           <p className="display text-3xl font-bold uppercase">{DAY_LABEL[day]}</p>
+          {editMode && <p className="text-xs text-mute">Training aanpassen: tik op een set om hem te wijzigen</p>}
         </div>
         <div className="text-right text-sm text-mute">
           <p>
             {totalDone}/{totalPlanned} sets
           </p>
-          <Elapsed since={startedAt} />
+          {!editMode && <Elapsed since={startedAt} />}
         </div>
       </header>
       <div className="h-1.5 overflow-hidden rounded-full bg-line">
@@ -434,6 +520,7 @@ export function TrainingSession({ workoutId, day, startedAt, items, notes, info,
             onSwap={(to) => setSwaps((s) => ({ ...s, [i]: to }))}
             onLog={onLog}
             onDelete={onDelete}
+            onUpdate={onUpdate}
             active={i === activeIndex}
             onActivate={() => setChosen(i)}
           />
@@ -441,13 +528,23 @@ export function TrainingSession({ workoutId, day, startedAt, items, notes, info,
       })}
 
       <section className="space-y-3 pt-2">
+        {!editMode && (
         <textarea
-          value={note}
-          onChange={(e) => setNote(e.target.value)}
-          placeholder="Notitie (optioneel), bijv. slecht geslapen of schouder voelde raar"
-          rows={2}
-          className="w-full rounded-lg border border-line bg-steel px-3 py-2.5"
-        />
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            placeholder="Notitie (optioneel), bijv. slecht geslapen of schouder voelde raar"
+            rows={2}
+            className="w-full rounded-lg border border-line bg-steel px-3 py-2.5"
+          />
+        )}
+        {editMode ? (
+          <Link
+            href={`/training/${workoutId}/klaar`}
+            className="block w-full rounded-full bg-pin py-4 text-center text-xl font-semibold text-chalk"
+          >
+            Klaar met aanpassen
+          </Link>
+        ) : (
         <form action={finishWorkout.bind(null, workoutId, note)}>
           <SubmitButton
             disabled={pending || sets.length === 0 || sets.some((s) => s.id.startsWith("tmp-"))}
@@ -457,14 +554,15 @@ export function TrainingSession({ workoutId, day, startedAt, items, notes, info,
             Training afronden
           </SubmitButton>
         </form>
+        )}
         <form
           action={discardWorkout.bind(null, workoutId)}
           onSubmit={(e) => {
-            if (sets.length > 0 && !window.confirm("Training weggooien? Je gelogde sets gaan verloren.")) e.preventDefault();
+            if (sets.length > 0 && !window.confirm(editMode ? "Hele training verwijderen? Alle sets gaan verloren." : "Training weggooien? Je gelogde sets gaan verloren.")) e.preventDefault();
           }}
         >
           <button className="flex w-full items-center justify-center gap-1.5 py-2 text-sm text-mute">
-            <Trash2 size={14} /> Training weggooien
+            <Trash2 size={14} /> {editMode ? "Hele training verwijderen" : "Training weggooien"}
           </button>
         </form>
       </section>

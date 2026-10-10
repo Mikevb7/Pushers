@@ -97,9 +97,9 @@ describe("stats", () => {
     const prs = findPRs(sets);
     expect(prs.map((p) => p.workoutId)).toEqual(["c", "b"]);
   });
-  it("dropsets tellen niet mee", () => {
-    const withDrop = [...sets, { ...mk("2026-10-08", 200, 10, "c"), is_drop: true }];
-    expect(exerciseSeries(withDrop, "chest-press").at(-1)!.weight).toBe(60);
+  it("een set met dropset telt gewoon mee, de drop zelf niet", () => {
+    const withDrop = [...sets, { ...mk("2026-10-08", 62.5, 10, "c"), is_drop: true, drop_weight_kg: 200, drop_reps: 10 }];
+    expect(exerciseSeries(withDrop, "chest-press").at(-1)!.weight).toBe(62.5);
   });
   it("lichaamsgewicht telt mee bij pull-ups", () => {
     const s = [mk("2026-09-01", 0, 5, "a", "pull-up"), mk("2026-10-01", 0, 8, "b", "pull-up")];
@@ -146,5 +146,16 @@ describe("plaatnummers (Life Fitness)", () => {
     expect(s.weight).toBe(6);
     expect(s.text).toContain("plaat 6");
     expect(suggest(item, ex, []).text).toContain("plaat");
+  });
+});
+
+describe("witte kabels", () => {
+  it("kabeloefeningen hebben een variant op de witte Life Fitness met plaatnummers", () => {
+    for (const id of ["rope-pushdown", "cable-overhead-ext", "cable-lateral", "cable-fly", "rope-crunch"]) {
+      expect(EXERCISE_MAP[id].alternatives[0]).toBe(`${id}-wit`);
+      const v = EXERCISE_MAP[`${id}-wit`];
+      expect(v.plates).toBe(true);
+      expect(v.alternatives[0]).toBe(id);
+    }
   });
 });

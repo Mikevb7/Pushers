@@ -61,6 +61,23 @@ export async function logSet(input: LogSetInput) {
   return data;
 }
 
+export async function updateSet(input: { id: string; weight: number; reps: number; rir: number | null }) {
+  const { supabase } = await requireUser();
+  const { data, error } = await supabase
+    .from("sets")
+    .update({
+      weight_kg: Math.max(0, input.weight),
+      reps: Math.max(0, Math.round(input.reps)),
+      rir: input.rir,
+    })
+    .eq("id", input.id)
+    .select("*")
+    .single();
+  if (error) throw new Error(error.message);
+  refresh();
+  return data;
+}
+
 export async function deleteSet(id: string) {
   const { supabase } = await requireUser();
   await supabase.from("sets").delete().eq("id", id);
@@ -68,9 +85,15 @@ export async function deleteSet(id: string) {
 
 export async function finishWorkout(id: string, notes?: string) {
   const { supabase } = await requireUser();
+  // De training telt op de dag van de eerste set, niet op het moment dat je op "start" drukte.
+  const { data: first } = await supabase.from("sets").select("created_at").eq("workout_id", id).order("created_at").limit(1);
   await supabase
     .from("workouts")
-    .update({ completed_at: new Date().toISOString(), notes: notes?.trim() || null })
+    .update({
+      completed_at: new Date().toISOString(),
+      notes: notes?.trim() || null,
+      ...(first?.[0] ? { started_at: first[0].created_at } : {}),
+    })
     .eq("id", id);
   refresh();
   redirect(`/training/${id}/klaar`);

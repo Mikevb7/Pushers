@@ -1,7 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight, Check, ChevronRight, Sparkles } from "lucide-react";
-import { loadActiveAdvice, loadHabits, loadSets, loadWorkouts, requireMe } from "@/lib/data";
+import { closeStaleWorkouts, loadActiveAdvice, loadHabits, loadSets, loadWorkouts, requireMe } from "@/lib/data";
 import { dayKey, WEEKDAY_SHORT } from "@/lib/dates";
 import { DAY_LABEL, PLAN, GYM_SESSIONS_PER_WEEK } from "@/lib/schedule";
 import { habitStreak, nextGymDay, trainingAdvice, weekStatus } from "@/lib/rotation";
@@ -20,6 +20,7 @@ const HERO_PHOTO = {
 
 export default async function Home() {
   const { supabase, user, profile } = await requireMe();
+  await closeStaleWorkouts(supabase, user.id);
   const [workouts, habits, sets, advice] = await Promise.all([
     loadWorkouts(supabase, user.id),
     loadHabits(supabase, user.id, 400),

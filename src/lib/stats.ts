@@ -1,4 +1,6 @@
 // Kracht, progressie in %, PR's en volume.
+// Let op: is_drop betekent "na deze set volgde een dropset". De set zelf is een
+// gewone werkset en telt dus volledig mee; alleen de drop (drop_weight_kg/drop_reps) niet.
 import { EXERCISE_MAP, type Muscle, type Exercise } from "./exercises";
 import { addDays, dayKey } from "./dates";
 import type { SetRow } from "./types";
@@ -29,7 +31,7 @@ export function exerciseSeries(sets: DatedSet[], exerciseId: string, bodyweight 
   if (!ex) return [];
   const best = new Map<string, SessionPoint>();
   for (const s of sets) {
-    if (s.exercise_id !== exerciseId || s.is_drop) continue;
+    if (s.exercise_id !== exerciseId) continue;
     const v = e1rm(s.weight_kg, s.reps, ex, bodyweight);
     const cur = best.get(s.workout_id);
     if (!cur || v > cur.e1rm) {
@@ -101,7 +103,7 @@ export interface PR {
 
 /** Persoonlijke records: een set die zwaarder (geschat 1RM) is dan alles daarvoor. */
 export function findPRs(sets: DatedSet[], bodyweightByUser: Record<string, number> = {}): PR[] {
-  const sorted = [...sets].filter((s) => !s.is_drop).sort((a, b) => (a.date + a.created_at).localeCompare(b.date + b.created_at));
+  const sorted = [...sets].sort((a, b) => (a.date + a.created_at).localeCompare(b.date + b.created_at));
   const best = new Map<string, number>();
   const firstWorkout = new Map<string, string>();
   const prs = new Map<string, PR>(); // max 1 PR per oefening per training
@@ -132,7 +134,7 @@ export function weeklySets(sets: DatedSet[], today = dayKey()): Partial<Record<M
   const from = addDays(today, -6);
   const out: Partial<Record<Muscle, number>> = {};
   for (const s of sets) {
-    if (s.is_drop || dayKey(s.date) < from) continue;
+    if (dayKey(s.date) < from) continue;
     const ex = EXERCISE_MAP[s.exercise_id];
     if (!ex) continue;
     out[ex.muscle] = (out[ex.muscle] ?? 0) + 1;

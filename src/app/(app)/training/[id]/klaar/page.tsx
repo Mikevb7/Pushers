@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Trophy } from "lucide-react";
+import { Pencil, Trophy } from "lucide-react";
 import { loadSets, requireMe } from "@/lib/data";
 import { EXERCISE_MAP, formatLoad } from "@/lib/exercises";
 import { DAY_LABEL } from "@/lib/schedule";
@@ -16,7 +16,7 @@ export default async function DonePage({ params }: { params: Promise<{ id: strin
   if (!workout || workout.user_id !== user.id) notFound();
 
   const all = await loadSets(supabase, user.id);
-  const sets = all.filter((s) => s.workout_id === id && !s.is_drop);
+  const sets = all.filter((s) => s.workout_id === id);
   const prs = findPRs(all, { [user.id]: profile.bodyweight_kg }).filter((p) => p.workoutId === id);
   const volume = sets.reduce((a, s) => a + Number(s.weight_kg) * s.reps, 0);
   const minutes = workout.completed_at
@@ -74,9 +74,16 @@ export default async function DonePage({ params }: { params: Promise<{ id: strin
         {workout.quick_check && <p className="text-mute">Afgevinkt zonder sets.</p>}
       </section>
 
-      <Link href="/" className="block rounded-full bg-pin py-4 text-center text-xl font-semibold text-chalk">
-        Terug naar vandaag
-      </Link>
+      <div className="space-y-2">
+        <Link href="/" className="block rounded-full bg-pin py-4 text-center text-xl font-semibold text-chalk">
+          Terug naar vandaag
+        </Link>
+        {workout.day_type !== "cardio" && (
+          <Link href={`/training/${id}?bewerk=1`} className="flex items-center justify-center gap-1.5 rounded-full bg-steel py-3.5 font-semibold">
+            <Pencil size={16} /> Training aanpassen
+          </Link>
+        )}
+      </div>
     </div>
   );
 }

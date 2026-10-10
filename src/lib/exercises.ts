@@ -37,7 +37,7 @@ export interface Exercise {
 const yt = (q: string) => `https://www.youtube.com/results?search_query=${encodeURIComponent(q + " uitvoering")}`;
 export const videoUrl = (e: Exercise) => yt(e.name);
 
-export const EXERCISES: Exercise[] = [
+const BASE_EXERCISES: Exercise[] = [
   // ---------- BORST ----------
   {
     id: "incline-smith",
@@ -601,6 +601,38 @@ export const EXERCISES: Exercise[] = [
     alternatives: ["rope-crunch"],
   },
 ];
+
+// Kabeloefeningen kunnen ook op de witte Life Fitness (twee kolommen naast elkaar).
+// Daar staan plaatnummers op het blok in plaats van kilo's, dus het is een eigen variant
+// met eigen progressie. In de training kies je zelf op welk apparaat je hem doet.
+const WHITE_CABLE_VARIANTS = [
+  "cable-fly",
+  "cable-lateral",
+  "cable-rear-delt",
+  "straight-arm-pulldown",
+  "rope-pushdown",
+  "cable-overhead-ext",
+  "rope-crunch",
+];
+
+function whiteVariant(base: Exercise): Exercise {
+  return {
+    ...base,
+    id: `${base.id}-wit`,
+    name: `${base.name.replace(/ \(kabel\)$/, "")}, witte kabels`,
+    equipment: "Witte Life Fitness, twee kolommen naast elkaar",
+    photo: "/equipment/dual-cable-white.webp",
+    setup: `${base.setup.replace(/^Katrol/, "Op de witte kabels: katrol")} Log het plaatnummer van de pin (1-16).`,
+    plates: true,
+    increment: 1,
+    alternatives: [base.id, ...base.alternatives],
+  };
+}
+
+export const EXERCISES: Exercise[] = BASE_EXERCISES.flatMap((e) => {
+  if (!WHITE_CABLE_VARIANTS.includes(e.id)) return [e];
+  return [{ ...e, alternatives: [`${e.id}-wit`, ...e.alternatives] }, whiteVariant(e)];
+});
 
 const num = (n: number) => String(Math.round(n * 100) / 100).replace(".", ",");
 

@@ -101,6 +101,24 @@ export default async function WeekPage() {
       </section>
 
       <section>
+        <h2 className="mb-1 font-semibold">Recente trainingen</h2>
+        <p className="mb-2 text-sm text-mute">Tik op een training om hem te bekijken of aan te passen.</p>
+        <ul className="space-y-1.5">
+          {workouts
+            .filter((w) => w.completed_at && w.day_type !== "cardio")
+            .slice(0, 12)
+            .map((w) => (
+              <li key={w.id}>
+                <Link href={`/training/${w.id}/klaar`} className="card flex items-center justify-between px-3 py-2.5 text-sm">
+                  <span className="font-semibold">{DAY_LABEL[w.day_type]}</span>
+                  <span className="text-mute">{formatDay(dayKey(w.started_at))}</span>
+                </Link>
+              </li>
+            ))}
+        </ul>
+      </section>
+
+      <section>
         <h2 className="mb-2 font-semibold">Vorige weken</h2>
         <ul className="space-y-1.5">
           {pastWeeks.map((w) => (

@@ -159,3 +159,13 @@ describe("witte kabels", () => {
     }
   });
 });
+
+describe("robuustheid", () => {
+  it("een oefening met alleen dropset-sets heeft gewoon een reeks", () => {
+    const rows: DatedSet[] = [1, 2].map((n) => ({
+      ...set({ exercise_id: "cable-overhead-ext", weight_kg: 25, reps: 12, set_number: n, workout_id: "w9", is_drop: true, drop_weight_kg: 15, drop_reps: 8 }),
+      date: "2026-10-10T13:00:00Z",
+    }));
+    expect(exerciseSeries(rows, "cable-overhead-ext")).toHaveLength(1);
+  });
+});

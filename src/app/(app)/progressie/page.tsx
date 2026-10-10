@@ -35,10 +35,12 @@ export default async function ProgressPage({ searchParams }: { searchParams: Pro
   const muscles = muscleProgress(sets, period, bw, today);
   const maxAbs = Math.max(5, ...muscles.map((m) => Math.abs(m.pct)));
   const exercises = exerciseIdsIn(sets)
-    .map((id) => {
-      const series = exerciseSeries(sets, id, bw);
+    .map((id) => ({ id, series: exerciseSeries(sets, id, bw) }))
+    // Oefeningen zonder bruikbare sets (bijv. alleen 0 reps) overslaan i.p.v. crashen
+    .filter((e) => e.series.length > 0)
+    .map(({ id, series }) => {
       const best = series.reduce((a, b) => (b.e1rm > a.e1rm ? b : a), series[0]);
-      return { id, series, best, pct: exerciseProgress(series, period, today), last: series.at(-1)!.date };
+      return { id, series, best, pct: exerciseProgress(series, period, today), last: series[series.length - 1].date };
     })
     .sort((a, b) => b.last.localeCompare(a.last));
   const selected = exercises.find((e) => e.id === sp.oefening);

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Trophy } from "lucide-react";
 import { loadSets, requireMe } from "@/lib/data";
-import { EXERCISE_MAP } from "@/lib/exercises";
+import { EXERCISE_MAP, formatLoad } from "@/lib/exercises";
 import { DAY_LABEL } from "@/lib/schedule";
 import { findPRs } from "@/lib/stats";
 import type { Workout } from "@/lib/types";
@@ -52,7 +52,7 @@ export default async function DonePage({ params }: { params: Promise<{ id: strin
           <ul className="space-y-1">
             {prs.map((p) => (
               <li key={p.exerciseId}>
-                {EXERCISE_MAP[p.exerciseId]?.name}: {fmt(p.weight)} kg × {p.reps}
+                {EXERCISE_MAP[p.exerciseId]?.name}: {formatLoad(p.exerciseId, p.weight)} × {p.reps}
               </li>
             ))}
           </ul>

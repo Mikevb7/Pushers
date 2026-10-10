@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Droplet, Flame, HeartPulse, Pill, Trophy } from "lucide-react";
 import { loadHabits, loadProfiles, loadSets, loadWorkouts, requireMe } from "@/lib/data";
 import { addDays, dayKey, timeAgo } from "@/lib/dates";
-import { EXERCISE_MAP } from "@/lib/exercises";
+import { EXERCISE_MAP, formatLoad } from "@/lib/exercises";
 import { DAY_LABEL } from "@/lib/schedule";
 import { habitStreak, weekStatus, weekStreak } from "@/lib/rotation";
 import { findPRs, formatPct, overallProgress, type Period } from "@/lib/stats";
@@ -12,7 +12,6 @@ const PERIODS: { id: Period; label: string }[] = [
   { id: "maand", label: "Maand" },
   { id: "start", label: "Sinds start" },
 ];
-const fmt = (n: number) => String(Math.round(n * 10) / 10).replace(".", ",");
 
 export default async function CrewPage({ searchParams }: { searchParams: Promise<{ periode?: string }> }) {
   const sp = await searchParams;
@@ -135,7 +134,7 @@ export default async function CrewPage({ searchParams }: { searchParams: Promise
                     {prs.slice(0, 2).map((p) => (
                       <li key={p.exerciseId} className="flex items-center gap-2 text-sm">
                         <Trophy size={14} className="shrink-0 text-pin-deep" />
-                        Record {EXERCISE_MAP[p.exerciseId]?.name}: {fmt(p.weight)} kg × {p.reps}
+                        Record {EXERCISE_MAP[p.exerciseId]?.name}: {formatLoad(p.exerciseId, p.weight)} × {p.reps}
                       </li>
                     ))}
                     {prs.length > 2 && <li className="pl-[22px] text-sm text-mute">en nog {prs.length - 2} andere records</li>}

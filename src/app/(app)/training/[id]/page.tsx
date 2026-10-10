@@ -1,13 +1,12 @@
 import { notFound, redirect } from "next/navigation";
 import { loadActiveAdvice, loadSets, requireUser } from "@/lib/data";
-import { EXERCISE_MAP } from "@/lib/exercises";
+import { EXERCISE_MAP, formatLoad } from "@/lib/exercises";
 import { planFor } from "@/lib/plan";
 import { sessionsFor, suggest, type Suggestion } from "@/lib/progression";
 import type { GymDay } from "@/lib/schedule";
 import type { SetRow, Workout } from "@/lib/types";
 import { TrainingSession, type ExerciseInfo } from "@/components/TrainingSession";
 
-const fmtKg = (n: number) => String(n).replace(".", ",");
 
 export default async function TrainingPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -41,7 +40,7 @@ export default async function TrainingPage({ params }: { params: Promise<{ id: s
     info[exId] = {
       suggestion: sug,
       last: last
-        ? `${fmtKg(Math.max(...last.sets.map((s) => Number(s.weight_kg))))} kg × ${last.sets.map((s) => s.reps).join(", ")}`
+        ? `${formatLoad(exId, Math.max(...last.sets.map((s) => Number(s.weight_kg))))} × ${last.sets.map((s) => s.reps).join(", ")}`
         : null,
     };
   }

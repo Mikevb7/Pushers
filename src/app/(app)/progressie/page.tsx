@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { loadProfiles, loadSets, requireMe } from "@/lib/data";
 import { dayKey } from "@/lib/dates";
-import { EXERCISE_MAP, MUSCLE_LABEL } from "@/lib/exercises";
+import { EXERCISE_MAP, MUSCLE_LABEL, formatLoad } from "@/lib/exercises";
 import {
   exerciseIdsIn,
   exerciseProgress,
@@ -20,7 +20,6 @@ const PERIODS: { id: Period; label: string }[] = [
   { id: "start", label: "Sinds start" },
 ];
 
-const fmt = (n: number) => String(Math.round(n * 10) / 10).replace(".", ",");
 
 export default async function ProgressPage({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
   const sp = await searchParams;
@@ -117,14 +116,14 @@ export default async function ProgressPage({ searchParams }: { searchParams: Pro
             <div>
               <h2 className="font-semibold">{EXERCISE_MAP[selected.id].name}</h2>
               <p className="text-sm text-mute">
-                Beste set: {fmt(selected.best.weight)} kg × {selected.best.reps}
+                Beste set: {formatLoad(selected.id, selected.best.weight)} × {selected.best.reps}
               </p>
             </div>
             <Link href={link({ oefening: undefined })} className="text-sm text-mute">
               Sluiten
             </Link>
           </div>
-          <ProgressChart points={selected.series.map((p) => ({ date: p.date, e1rm: p.e1rm, label: `${fmt(p.weight)} kg × ${p.reps}` }))} />
+          <ProgressChart points={selected.series.map((p) => ({ date: p.date, e1rm: p.e1rm, label: `${formatLoad(selected.id, p.weight)} × ${p.reps}` }))} />
         </section>
       )}
 
@@ -144,7 +143,7 @@ export default async function ProgressPage({ searchParams }: { searchParams: Pro
                   <span className="flex-1">
                     <span className="block font-medium">{EXERCISE_MAP[e.id].name}</span>
                     <span className="text-sm text-mute">
-                      {fmt(e.best.weight)} kg × {e.best.reps}, {e.series.length}× gedaan
+                      {formatLoad(e.id, e.best.weight)} × {e.best.reps}, {e.series.length}× gedaan
                     </span>
                   </span>
                   <span className={`display text-2xl font-bold ${e.pct !== null && e.pct > 0 ? "text-go" : e.pct !== null && e.pct < 0 ? "text-warn" : "text-mute"}`}>

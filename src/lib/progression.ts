@@ -1,5 +1,5 @@
 // Progressive overload: vaste regels die per oefening het volgende gewicht voorstellen.
-import type { Exercise } from "./exercises";
+import { formatLoad, type Exercise } from "./exercises";
 import type { PlanItem } from "./schedule";
 import type { SetRow } from "./types";
 
@@ -19,7 +19,6 @@ export interface Suggestion {
 }
 
 const round = (n: number) => Math.round(n * 100) / 100;
-const kg = (n: number) => `${round(n).toString().replace(".", ",")} kg`;
 
 /** Groepeer sets van één oefening per training, nieuwste eerst. */
 export function sessionsFor(exerciseId: string, sets: SetRow[], workoutDates: Record<string, string>): Session[] {
@@ -48,6 +47,7 @@ function bestRepsAt(sets: SetRow[], w: number): number {
 }
 
 export function suggest(item: PlanItem, ex: Exercise, history: Session[]): Suggestion {
+  const kg = (n: number) => formatLoad(ex.id, n);
   const unit = ex.load === "lichaamsgewicht" ? "extra" : ex.exclBar ? "zonder stang" : ex.load === "dumbbell" ? "per dumbbell" : "";
   if (history.length === 0 || history[0].sets.length === 0) {
     return {
@@ -57,6 +57,8 @@ export function suggest(item: PlanItem, ex: Exercise, history: Session[]): Sugge
       text:
         ex.load === "lichaamsgewicht"
           ? `Eerste keer: zoveel mogelijk nette reps, nog 1-2 over.`
+          : ex.plates
+          ? `Eerste keer: kies een plaat (pin 1-16) waarmee je ±${item.repMax - 2} reps haalt en er nog 1-2 over hebt.`
           : `Eerste keer: kies een gewicht waarmee je ±${item.repMax - 2} reps haalt en er nog 1-2 over hebt.`,
     };
   }

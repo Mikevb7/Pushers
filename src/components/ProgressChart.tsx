@@ -27,7 +27,7 @@ export function ProgressChart({ points }: { points: ChartPoint[] }) {
           <Tooltip
             contentStyle={{ background: "#1e2320", border: "none", borderRadius: 8, color: "#ffffff" }}
             labelFormatter={(d) => short(String(d))}
-            formatter={(v, _n, item) => [`${(item.payload as ChartPoint).label} (≈ ${Math.round(Number(v))} kg 1RM)`, "Beste set"]}
+            formatter={(_v, _n, item) => [(item.payload as ChartPoint).label, "Beste set"]}
           />
           <Line type="monotone" dataKey="e1rm" stroke="#4b7710" strokeWidth={2.5} dot={{ r: 3, fill: "#4b7710" }} activeDot={{ r: 5 }} />
         </LineChart>

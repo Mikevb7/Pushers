@@ -1,5 +1,5 @@
 // Bouwt de context voor de AI-coach en controleert wat de coach terugstuurt.
-import { EXERCISES, EXERCISE_MAP, MUSCLE_LABEL } from "./exercises";
+import { EXERCISES, EXERCISE_MAP, MUSCLE_LABEL, formatLoad } from "./exercises";
 import { PLAN, ROTATION, type GymDay } from "./schedule";
 import { addDays, daysBetween, dayKey, weekStart } from "./dates";
 import { sessionsFor, suggest } from "./progression";
@@ -38,7 +38,7 @@ export function buildCoachContext(input: {
       spier: ex.muscle,
       laatste_trainingen: sessions.slice(0, 5).map((s) => ({
         datum: dayKey(s.date),
-        sets: s.sets.map((x) => `${Number(x.weight_kg)}kg×${x.reps}${x.rir === null ? "" : ` (${x.rir === 3 ? "3+" : x.rir} over)`}`),
+        sets: s.sets.map((x) => `${formatLoad(id, Number(x.weight_kg)).replace(" ", "")}×${x.reps}${x.rir === null ? "" : ` (${x.rir === 3 ? "3+" : x.rir} over)`}`),
       })),
       pct_maand: r1(exerciseProgress(series, "maand", today)),
       pct_sinds_start: r1(exerciseProgress(series, "start", today)),

@@ -137,3 +137,14 @@ describe("rotatie en streaks", () => {
     expect(weekStreak(prev, "2026-10-09")).toBe(1);
   });
 });
+
+describe("plaatnummers (Life Fitness)", () => {
+  it("bayesian curl logt in platen en gaat +1 plaat omhoog", () => {
+    const ex = getExercise("bayesian-curl");
+    const item = PLAN.pull.items.find((i) => i.exerciseId === "bayesian-curl")!;
+    const s = suggest(item, ex, [sess([1, 2, 3].map((i) => set({ exercise_id: ex.id, weight_kg: 5, reps: 12, set_number: i })))]);
+    expect(s.weight).toBe(6);
+    expect(s.text).toContain("plaat 6");
+    expect(suggest(item, ex, []).text).toContain("plaat");
+  });
+});

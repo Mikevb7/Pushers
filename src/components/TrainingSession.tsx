@@ -28,7 +28,9 @@ interface Props {
 }
 
 const unitLabel = (ex: Exercise) =>
-  ex.load === "lichaamsgewicht" ? "kg extra" : ex.exclBar ? "kg zonder stang" : ex.load === "dumbbell" ? "kg per dumbbell" : "kg";
+  ex.plates
+    ? "plaatnummer"
+    : ex.load === "lichaamsgewicht" ? "kg extra" : ex.exclBar ? "kg zonder stang" : ex.load === "dumbbell" ? "kg per dumbbell" : "kg";
 const fmt = (n: number) => String(Math.round(n * 100) / 100).replace(".", ",");
 const parse = (s: string) => Number(s.replace(",", "."));
 const RIR = [0, 1, 2, 3];
@@ -287,7 +289,8 @@ function ExerciseBlock({
           <div key={s.id} className="flex items-center gap-3 rounded-lg bg-floor px-3 py-2">
             <span className="w-10 text-sm text-mute">Set {s.set_number}</span>
             <span className="display flex-1 text-2xl font-semibold">
-              {fmt(Number(s.weight_kg))} <span className="text-base text-mute">kg</span> × {s.reps}
+              {ex.plates ? <span className="text-base text-mute">plaat </span> : null}
+              {fmt(Number(s.weight_kg))} {ex.plates ? null : <span className="text-base text-mute">kg</span>} × {s.reps}
             </span>
             <span className="text-xs text-mute">
               {s.rir === null ? "" : s.rir === 3 ? "3+ over" : `${s.rir} over`}

@@ -30,6 +30,7 @@ export interface Exercise {
   increment: number; // kg per stap omhoog
   isolation: boolean; // isolatie-oefening: dropset toegestaan
   exclBar?: boolean; // gewicht loggen zonder stang
+  plates?: boolean; // gewicht loggen als plaatnummer (machines zonder kg op het blok)
   alternatives: string[]; // als het apparaat bezet is
 }
 
@@ -360,10 +361,11 @@ export const EXERCISES: Exercise[] = [
     muscle: "biceps",
     equipment: "Witte Life Fitness, twee kolommen naast elkaar",
     photo: "/equipment/dual-cable-white.webp",
-    setup: "Katrol laag, enkele handgreep. Ga met je rug naar de kolom staan en stap één pas naar voren: je arm begint achter je lichaam.",
+    setup: "Katrol laag, enkele handgreep. Ga met je rug naar de kolom staan en stap één pas naar voren: je arm begint achter je lichaam. Log het plaatnummer van de pin (1-16).",
     tips: ["Elleboog blijft achter je lichaam, beweegt niet naar voren.", "Volledige stretch onderin.", "Per arm loggen."],
     load: "kabel",
-    increment: 2.5,
+    increment: 1,
+    plates: true,
     isolation: true,
     alternatives: ["machine-arm-curl", "hammer-curl"],
   },
@@ -599,6 +601,13 @@ export const EXERCISES: Exercise[] = [
     alternatives: ["rope-crunch"],
   },
 ];
+
+const num = (n: number) => String(Math.round(n * 100) / 100).replace(".", ",");
+
+/** "50 kg" of "plaat 5", afhankelijk van hoe de oefening gelogd wordt. */
+export function formatLoad(exerciseId: string, weight: number): string {
+  return EXERCISE_MAP[exerciseId]?.plates ? `plaat ${num(weight)}` : `${num(weight)} kg`;
+}
 
 export const EXERCISE_MAP: Record<string, Exercise> = Object.fromEntries(EXERCISES.map((e) => [e.id, e]));
 

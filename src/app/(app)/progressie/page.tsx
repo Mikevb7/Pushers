@@ -13,6 +13,8 @@ import {
   type Period,
 } from "@/lib/stats";
 import { ProgressChart } from "@/components/ProgressChart";
+import { CrewName } from "@/components/CrewName";
+import { themeFor } from "@/lib/themes";
 
 const PERIODS: { id: Period; label: string }[] = [
   { id: "week", label: "Week" },
@@ -54,8 +56,9 @@ export default async function ProgressPage({ searchParams }: { searchParams: Pro
   };
   const mine = who.id === user.id;
 
+  const viewTheme = themeFor(who.id);
   return (
-    <div className="space-y-6">
+    <div data-theme={viewTheme ?? undefined} className={`space-y-6 ${viewTheme && !mine ? "-mx-4 rounded-3xl px-4 pb-4" : ""}`}>
       <header className="pt-2">
         <h1 className="display text-6xl font-bold uppercase">Progressie</h1>
       </header>
@@ -67,7 +70,7 @@ export default async function ProgressPage({ searchParams }: { searchParams: Pro
             href={link({ user: p.id === user.id ? undefined : p.id, oefening: undefined })}
             className={`shrink-0 rounded-full px-3.5 py-1.5 text-sm font-semibold ${p.id === who.id ? "bg-chalk text-floor" : "bg-steel text-mute"}`}
           >
-            {p.id === user.id ? "Ik" : p.display_name}
+            {p.id === user.id ? "Ik" : <CrewName userId={p.id} name={p.display_name} />}
           </Link>
         ))}
       </nav>
@@ -81,7 +84,14 @@ export default async function ProgressPage({ searchParams }: { searchParams: Pro
       </div>
 
       <section>
-        <p className="text-mute">{mine ? "Je bent" : `${who.display_name} is`} gemiddeld</p>
+        <p className="text-mute">
+          {mine ? "Je bent" : (
+            <>
+              <CrewName userId={who.id} name={who.display_name} /> is
+            </>
+          )}{" "}
+          gemiddeld
+        </p>
         <p className={`display text-[6.5rem] font-bold ${overall !== null && overall > 0 ? "text-go" : ""}`}>{formatPct(overall)}</p>
         <p className="text-mute">
           {overall === null

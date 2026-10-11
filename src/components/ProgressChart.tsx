@@ -21,7 +21,7 @@ export function ProgressChart({ points }: { points: ChartPoint[] }) {
     <div className="h-52 w-full" role="img" aria-label="Geschatte kracht per training">
       <ResponsiveContainer>
         <LineChart data={points} margin={{ top: 8, right: 8, bottom: 0, left: -18 }}>
-          <CartesianGrid stroke="#ded8d3" strokeDasharray="2 4" vertical={false} />
+          <CartesianGrid stroke="var(--color-line)" strokeDasharray="2 4" vertical={false} />
           <XAxis dataKey="date" tickFormatter={short} tick={{ fill: "#676d68", fontSize: 12 }} axisLine={false} tickLine={false} minTickGap={20} />
           <YAxis tick={{ fill: "#676d68", fontSize: 12 }} axisLine={false} tickLine={false} domain={["dataMin - 5", "dataMax + 5"]} tickFormatter={(v) => Math.round(v).toString()} />
           <Tooltip
@@ -29,7 +29,7 @@ export function ProgressChart({ points }: { points: ChartPoint[] }) {
             labelFormatter={(d) => short(String(d))}
             formatter={(_v, _n, item) => [(item.payload as ChartPoint).label, "Beste set"]}
           />
-          <Line type="monotone" dataKey="e1rm" stroke="#4b7710" strokeWidth={2.5} dot={{ r: 3, fill: "#4b7710" }} activeDot={{ r: 5 }} />
+          <Line type="monotone" dataKey="e1rm" stroke="var(--color-pin-deep)" strokeWidth={2.5} dot={{ r: 3, fill: "var(--color-pin-deep)" }} activeDot={{ r: 5 }} />
         </LineChart>
       </ResponsiveContainer>
     </div>

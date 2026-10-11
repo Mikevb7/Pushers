@@ -10,6 +10,8 @@ import { planFor } from "@/lib/plan";
 import { startWorkout } from "@/app/actions";
 import { HabitQuick } from "@/components/HabitQuick";
 import { SubmitButton } from "@/components/SubmitButton";
+import { CrewName } from "@/components/CrewName";
+import { themeFor } from "@/lib/themes";
 
 const HERO_PHOTO = {
   push: "/equipment/smith-machine.webp",
@@ -29,6 +31,7 @@ export default async function Home() {
   ]);
 
   const today = dayKey();
+  const pride = themeFor(user.id) === "pride";
   const next = nextGymDay(workouts);
   const week = weekStatus(workouts, today);
   const warn = trainingAdvice(workouts, today);
@@ -45,7 +48,9 @@ export default async function Home() {
       <header className="flex items-center justify-between">
         <div>
           <p className="display text-2xl font-semibold uppercase tracking-wide text-pin-deep">Pushers</p>
-          <p className="text-sm text-mute">Hoi {profile.display_name}</p>
+          <p className="text-sm text-mute">
+            Hoi <CrewName userId={user.id} name={profile.display_name} />
+          </p>
         </div>
         <Link
           href="/profiel"
@@ -58,7 +63,12 @@ export default async function Home() {
 
       <section className="relative overflow-hidden rounded-[1.75rem] bg-night text-white">
         <Image src={HERO_PHOTO[startDay]} alt="" fill priority sizes="448px" className="object-cover opacity-55" />
-        <div className="absolute inset-0 bg-gradient-to-b from-night/30 via-night/50 to-night/90" />
+        <div
+          className={`absolute inset-0 ${
+            pride ? "bg-gradient-to-br from-[#ff5fa8]/55 via-night/55 to-night/90" : "bg-gradient-to-b from-night/30 via-night/50 to-night/90"
+          }`}
+        />
+        {pride && <div className="pride-stripe absolute inset-x-0 top-0 h-1.5" aria-hidden />}
         <div className="relative flex min-h-[22rem] flex-col justify-end p-5">
           {doneToday.length > 0 && !openToday ? (
             <span className="mb-auto inline-flex w-fit items-center gap-1.5 rounded-full bg-pin px-3 py-1 text-sm font-semibold text-chalk">

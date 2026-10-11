@@ -5,6 +5,8 @@ import { addDays, dayKey, timeAgo } from "@/lib/dates";
 import { EXERCISE_MAP, formatLoad } from "@/lib/exercises";
 import { DAY_LABEL } from "@/lib/schedule";
 import { habitStreak, weekStatus, weekStreak } from "@/lib/rotation";
+import { CrewName } from "@/components/CrewName";
+import { themeFor } from "@/lib/themes";
 import { findPRs, formatPct, overallProgress, type Period } from "@/lib/stats";
 
 const PERIODS: { id: Period; label: string }[] = [
@@ -77,11 +79,13 @@ export default async function CrewPage({ searchParams }: { searchParams: Promise
             <li key={b.p.id}>
               <Link
                 href={`/progressie?${b.p.id === user.id ? "" : `user=${b.p.id}&`}periode=${period}`}
-                className={`flex items-center gap-3 rounded-lg px-3 py-3 ${b.p.id === user.id ? "bg-steel-2" : "bg-steel"}`}
+                className={`flex items-center gap-3 rounded-lg px-3 py-3 ${themeFor(b.p.id) === "pride" ? "pride-row" : b.p.id === user.id ? "bg-steel-2" : "bg-steel"}`}
               >
                 <span className={`display w-6 text-2xl font-bold ${i === 0 && b.pct !== null ? "text-pin-deep" : "text-mute"}`}>{i + 1}</span>
                 <span className="flex-1">
-                  <span className="block font-semibold">{b.p.display_name}</span>
+                  <span className="block font-semibold">
+                    <CrewName userId={b.p.id} name={b.p.display_name} />
+                  </span>
                   <span className="flex flex-wrap gap-x-3 text-xs text-mute">
                     <span>{b.week}/4 deze week</span>
                     {b.weeks > 0 && (
@@ -118,11 +122,13 @@ export default async function CrewPage({ searchParams }: { searchParams: Promise
         ) : (
           <ul className="space-y-2">
             {feed.map(({ w, prs, sets }) => (
-              <li key={w.id} className="card p-3">
+              <li key={w.id} className={`card p-3 ${themeFor(w.user_id) === "pride" ? "pride-row" : ""}`}>
                 <div className="flex items-baseline gap-2">
                   {w.day_type === "cardio" && <HeartPulse size={15} className="self-center text-go" />}
                   <p className="flex-1">
-                    <span className="font-semibold">{name(w.user_id)}</span>{" "}
+                    <span className="font-semibold">
+                      {w.user_id === user.id ? "Jij" : <CrewName userId={w.user_id} name={name(w.user_id)} />}
+                    </span>{" "}
                     {w.day_type === "cardio"
                       ? `deed cardio: ${w.cardio_description}${w.cardio_minutes ? `, ${w.cardio_minutes} min` : ""}`
                       : `deed ${DAY_LABEL[w.day_type]}${w.quick_check ? "" : `, ${sets} sets`}`}

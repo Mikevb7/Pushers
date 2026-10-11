@@ -84,3 +84,45 @@ textarea {
     transition: none !important;
   }
 }
+
+/* ---------- Pride-thema (Niek): roze, lekker extra ---------- */
+[data-theme="pride"] {
+  --color-floor: #fff0f6;
+  --color-steel: #ffffff;
+  --color-steel-2: #ffe0ef;
+  --color-line: #f6c9de;
+  --color-chalk: #2a1420;
+  --color-mute: #82526a;
+  --color-pin: #ff5fa8;
+  --color-pin-deep: #c4166b;
+  --color-pin-dim: #ffe2f0;
+  --color-go: #c4166b;
+  --color-night: #2a0f1f;
+  background:
+    radial-gradient(circle at 15% 0%, rgba(255, 95, 168, 0.16), transparent 45%),
+    radial-gradient(circle at 100% 30%, rgba(255, 143, 208, 0.14), transparent 40%),
+    var(--color-floor);
+}
+
+[data-theme="pride"] .card {
+  box-shadow: 0 2px 14px rgba(255, 95, 168, 0.14);
+}
+
+/* Roze verloop in tekst, voor Niek's naam (ook bij de rest van de crew) */
+.pride-name {
+  background: linear-gradient(90deg, #ff3d97, #ff8fd0 50%, #c4166b);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Klein regenboograndje: de vlag, niet het hele thema */
+.pride-stripe {
+  background: linear-gradient(90deg, #e40303, #ff8c00, #ffed00, #008026, #004dff, #750787);
+}
+
+/* Rij in leaderboard/feed van Niek, zoals iedereen hem ziet */
+.pride-row {
+  background: linear-gradient(135deg, #fff0f7, #ffe2f0) !important;
+  box-shadow: inset 0 0 0 2px #ff8fd0;
+}

@@ -5,7 +5,7 @@ export const metadata: Metadata = {
   title: "Pushers",
   description: "Schema, progressie en streaks voor de crew.",
   appleWebApp: { capable: true, title: "Pushers", statusBarStyle: "default" },
-  icons: { icon: "/icons/icon-192.png", apple: "/icons/apple-touch-icon.png" },
+  icons: { icon: "/icons/icon-192-v2.png", apple: "/icons/apple-touch-icon-v2.png" },
 };
 
 export const viewport: Viewport = {

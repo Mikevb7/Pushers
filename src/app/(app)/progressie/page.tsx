@@ -42,7 +42,8 @@ export default async function ProgressPage({ searchParams }: { searchParams: Pro
     .filter((e) => e.series.length > 0)
     .map(({ id, series }) => {
       const best = series.reduce((a, b) => (b.e1rm > a.e1rm ? b : a), series[0]);
-      return { id, series, best, pct: exerciseProgress(series, period, today), last: series[series.length - 1].date };
+      const setCount = sets.filter((x) => x.exercise_id === id).length;
+      return { id, series, best, setCount, pct: exerciseProgress(series, period, today), last: series[series.length - 1].date };
     })
     .sort((a, b) => b.last.localeCompare(a.last));
   const selected = exercises.find((e) => e.id === sp.oefening);
@@ -155,12 +156,18 @@ export default async function ProgressPage({ searchParams }: { searchParams: Pro
                   <span className="flex-1">
                     <span className="block font-medium">{EXERCISE_MAP[e.id].name}</span>
                     <span className="text-sm text-mute">
-                      {formatLoad(e.id, e.best.weight)} × {e.best.reps}, {e.series.length}× gedaan
+                      Beste set {formatLoad(e.id, e.best.weight)} × {e.best.reps}
+                      <br />
+                      {e.series.length} {e.series.length === 1 ? "training" : "trainingen"}, {e.setCount} sets
                     </span>
                   </span>
-                  <span className={`display text-2xl font-bold ${e.pct !== null && e.pct > 0 ? "text-go" : e.pct !== null && e.pct < 0 ? "text-warn" : "text-mute"}`}>
-                    {formatPct(e.pct)}
-                  </span>
+                  {e.series.length < 2 ? (
+                    <span className="rounded-full bg-pin-dim px-2.5 py-1 text-xs font-semibold text-pin-deep">Eerste keer</span>
+                  ) : (
+                    <span className={`display text-2xl font-bold ${e.pct !== null && e.pct > 0 ? "text-go" : e.pct !== null && e.pct < 0 ? "text-warn" : "text-mute"}`}>
+                      {formatPct(e.pct)}
+                    </span>
+                  )}
                 </Link>
               </li>
             ))}

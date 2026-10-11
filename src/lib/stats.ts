@@ -58,7 +58,14 @@ export function exerciseProgress(series: SessionPoint[], period: Period, today =
   const from = addDays(today, period === "week" ? -6 : -29);
   const inside = series.filter((p) => p.date >= from);
   const before = series.filter((p) => p.date < from);
-  if (!inside.length || !before.length) return null;
+  if (!inside.length) return null;
+  if (!before.length) {
+    // Pas in deze periode begonnen: vergelijk met je eerste training in de periode.
+    if (inside.length < 2) return null;
+    const base = inside[0].e1rm;
+    const now = Math.max(...inside.slice(1).map((p) => p.e1rm));
+    return base > 0 ? ((now - base) / base) * 100 : null;
+  }
   const base = Math.max(...before.map((p) => p.e1rm));
   const now = Math.max(...inside.map((p) => p.e1rm));
   return base > 0 ? ((now - base) / base) * 100 : null;

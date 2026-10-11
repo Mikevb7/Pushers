@@ -169,3 +169,12 @@ describe("robuustheid", () => {
     expect(exerciseSeries(rows, "cable-overhead-ext")).toHaveLength(1);
   });
 });
+
+describe("progressie binnen de periode", () => {
+  it("wie deze maand begon, ziet % t.o.v. zijn eerste training", () => {
+    const mk = (d: string, w: number, wid: string): DatedSet => ({ ...set({ exercise_id: "chest-press", weight_kg: w, reps: 10, workout_id: wid }), date: `${d}T10:00:00Z` });
+    const series = exerciseSeries([mk("2026-10-02", 50, "a"), mk("2026-10-09", 55, "b")], "chest-press");
+    expect(Math.round(exerciseProgress(series, "maand", "2026-10-10")!)).toBe(10);
+    expect(exerciseProgress(series.slice(0, 1), "maand", "2026-10-10")).toBeNull();
+  });
+});

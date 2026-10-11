@@ -643,6 +643,19 @@ export function formatLoad(exerciseId: string, weight: number): string {
 
 export const EXERCISE_MAP: Record<string, Exercise> = Object.fromEntries(EXERCISES.map((e) => [e.id, e]));
 
+/**
+ * Alle keuzes voor een plek in het schema: de oefening zelf, haar alternatieven,
+ * en de varianten daarvan (bijv. rope crunch -> ook op de witte kabels).
+ */
+export function optionsFor(exerciseId: string): string[] {
+  const out: string[] = [exerciseId];
+  for (const a of EXERCISE_MAP[exerciseId]?.alternatives ?? []) {
+    if (!out.includes(a)) out.push(a);
+    for (const b of EXERCISE_MAP[a]?.alternatives ?? []) if (!out.includes(b)) out.push(b);
+  }
+  return out;
+}
+
 export function getExercise(id: string): Exercise {
   const e = EXERCISE_MAP[id];
   if (!e) throw new Error(`Onbekende oefening: ${id}`);

@@ -178,3 +178,11 @@ describe("progressie binnen de periode", () => {
     expect(exerciseProgress(series.slice(0, 1), "maand", "2026-10-10")).toBeNull();
   });
 });
+
+describe("keuzes per plek in het schema", () => {
+  it("abdominal crunch kan ook rope crunch op de witte kabels worden", async () => {
+    const { optionsFor } = await import("./exercises");
+    expect(optionsFor("ab-crunch-machine")).toEqual(expect.arrayContaining(["rope-crunch", "rope-crunch-wit"]));
+    expect(optionsFor("rope-pushdown")).toContain("rope-pushdown-wit");
+  });
+});

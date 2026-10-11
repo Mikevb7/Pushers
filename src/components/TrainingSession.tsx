@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { ArrowLeft, Check, ChevronDown, ExternalLink, Pencil, Plus, Repeat, Sparkles, Trash2 } from "lucide-react";
-import { EXERCISE_MAP, videoUrl, type Exercise } from "@/lib/exercises";
+import { EXERCISE_MAP, optionsFor, videoUrl, type Exercise } from "@/lib/exercises";
 import { DAY_LABEL, type GymDay } from "@/lib/schedule";
 import type { PlannedItem } from "@/lib/plan";
 import type { Suggestion } from "@/lib/progression";
@@ -340,14 +340,14 @@ function ExerciseBlock({
       )}
 
       <div className="space-y-2 px-3 pb-3">
-        {sets.length === 0 && EXERCISE_MAP[item.exerciseId].alternatives.length > 0 && (
+        {sets.length === 0 && optionsFor(item.exerciseId).length > 1 && (
           <div>
             <button type="button" onClick={() => setPicking((p) => !p)} className="flex items-center gap-1.5 text-sm font-medium text-pin-deep" aria-expanded={picking}>
               <Repeat size={14} /> Ander apparaat of oefening
             </button>
             {picking && (
               <div className="mt-2 flex flex-wrap gap-1.5">
-                {[item.exerciseId, ...EXERCISE_MAP[item.exerciseId].alternatives]
+                {optionsFor(item.exerciseId)
                   .filter((a) => a !== exerciseId)
                   .map((a) => (
                     <button
@@ -404,7 +404,7 @@ export function TrainingSession({ workoutId, day, startedAt, items, notes, info,
     // Als er al sets van een alternatief zijn gelogd, toon dat alternatief.
     const out: Record<number, string> = {};
     items.forEach((it, i) => {
-      const alt = [it.exerciseId, ...EXERCISE_MAP[it.exerciseId].alternatives].find((a) => logged.some((s) => s.exercise_id === a));
+      const alt = optionsFor(it.exerciseId).find((a) => logged.some((s) => s.exercise_id === a));
       if (alt && alt !== it.exerciseId) out[i] = alt;
       else if (!alt && preferred[i]) out[i] = preferred[i];
     });

@@ -1,6 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import { loadActiveAdvice, loadSets, loadWorkouts, requireUser } from "@/lib/data";
-import { EXERCISE_MAP, formatLoad } from "@/lib/exercises";
+import { EXERCISE_MAP, formatLoad, optionsFor } from "@/lib/exercises";
 import { planFor } from "@/lib/plan";
 import { sessionsFor, suggest, type Suggestion } from "@/lib/progression";
 import type { GymDay } from "@/lib/schedule";
@@ -38,7 +38,7 @@ export default async function TrainingPage({
   const planned = new Set(items.map((i) => i.exerciseId));
   const preferred: Record<number, string> = {};
   items.forEach((it, idx) => {
-    const options = [it.exerciseId, ...EXERCISE_MAP[it.exerciseId].alternatives].filter((o) => o === it.exerciseId || !planned.has(o));
+    const options = optionsFor(it.exerciseId).filter((o) => o === it.exerciseId || !planned.has(o));
     const last = [...history].reverse().find((s) => sameDay.has(s.workout_id) && options.includes(s.exercise_id));
     if (last && last.exercise_id !== it.exerciseId) preferred[idx] = last.exercise_id;
   });
@@ -46,7 +46,7 @@ export default async function TrainingPage({
   const ids = new Set<string>();
   for (const i of items) {
     ids.add(i.exerciseId);
-    EXERCISE_MAP[i.exerciseId].alternatives.forEach((a) => ids.add(a));
+    optionsFor(i.exerciseId).forEach((a) => ids.add(a));
   }
   current.forEach((s) => ids.add(s.exercise_id));
 
@@ -54,7 +54,7 @@ export default async function TrainingPage({
   for (const exId of ids) {
     const ex = EXERCISE_MAP[exId];
     if (!ex) continue;
-    const base = items.find((i) => i.exerciseId === exId) ?? items.find((i) => EXERCISE_MAP[i.exerciseId].alternatives.includes(exId))!;
+    const base = items.find((i) => i.exerciseId === exId) ?? items.find((i) => optionsFor(i.exerciseId).includes(exId))!;
     const sessions = sessionsFor(exId, history, dates);
     const sug: Suggestion = base ? suggest(base, ex, sessions) : { kind: "first", weight: null, reps: 10, text: "" };
     const last = sessions[0];

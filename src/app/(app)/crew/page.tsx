@@ -86,17 +86,17 @@ export default async function CrewPage({ searchParams }: { searchParams: Promise
                     <span>{b.week}/4 deze week</span>
                     {b.weeks > 0 && (
                       <span className="inline-flex items-center gap-0.5">
-                        <Flame size={12} /> {b.weeks} wk
+                        <Flame size={12} /> {b.weeks} {b.weeks === 1 ? "week" : "weken"} vol
                       </span>
                     )}
                     {b.water > 0 && (
                       <span className="inline-flex items-center gap-0.5">
-                        <Droplet size={12} /> {b.water}
+                        <Droplet size={12} /> water {b.water}d
                       </span>
                     )}
                     {b.creatine > 0 && (
                       <span className="inline-flex items-center gap-0.5">
-                        <Pill size={12} /> {b.creatine}
+                        <Pill size={12} /> creatine {b.creatine}d
                       </span>
                     )}
                   </span>

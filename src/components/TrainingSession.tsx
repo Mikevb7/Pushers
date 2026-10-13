@@ -15,6 +15,7 @@ import { SubmitButton } from "@/components/SubmitButton";
 export interface ExerciseInfo {
   suggestion: Suggestion;
   last: string | null;
+  lastSets: { weight: number; reps: number }[]; // per set van de vorige keer
 }
 
 interface Props {
@@ -85,9 +86,11 @@ function SetForm({
   onSave,
   label,
   hint,
+  prev,
 }: {
   label?: string;
   hint?: string;
+  prev?: { weight: number; reps: number };
   ex: Exercise;
   setNumber: number;
   defaultWeight: number | null;
@@ -135,7 +138,14 @@ function SetForm({
   return (
     <div className="rounded-2xl border border-pin bg-pin-dim/60 p-3">
       <div className="mb-2 flex items-center justify-between gap-2">
-        <p className="text-sm text-mute">{label ?? `Set ${setNumber}`}</p>
+        <p className="text-sm text-mute">
+          {label ?? `Set ${setNumber}`}
+          {prev && (
+            <span className="ml-2 rounded bg-steel px-1.5 py-0.5 text-xs text-chalk">
+              vorige keer {ex.plates ? `plaat ${fmt(prev.weight)}` : `${fmt(prev.weight)} kg`} × {prev.reps}
+            </span>
+          )}
+        </p>
         {hint && (
           <span className="inline-flex items-center gap-1 rounded-full bg-pin-deep px-2.5 py-0.5 text-xs font-semibold text-white">
             <Zap size={12} aria-hidden /> {hint}
@@ -411,6 +421,7 @@ function ExerciseBlock({
             setNumber={sets.length + 1}
             label={formLabel}
             hint={formHint}
+            prev={info?.lastSets?.[sets.length]}
             defaultWeight={lastWeight}
             defaultReps={sets.length ? sets[sets.length - 1].reps : (sug?.reps ?? item.repMax)}
             onSave={(v) => onLog(exerciseId, sets.length + 1, v)}

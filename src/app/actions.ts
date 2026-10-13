@@ -6,6 +6,7 @@ import { requireUser } from "@/lib/data";
 import { dayKey } from "@/lib/dates";
 import { EXERCISE_MAP } from "@/lib/exercises";
 import { ROTATION, type GymDay } from "@/lib/schedule";
+import { REACTIONS } from "@/lib/types";
 
 const refresh = () => revalidatePath("/", "layout");
 
@@ -174,4 +175,38 @@ export async function signOut() {
   const { supabase } = await requireUser();
   await supabase.auth.signOut();
   redirect("/login");
+}
+
+// ---------- Reacties en comments ----------
+
+export async function toggleReaction(workoutId: string, emoji: string) {
+  if (!(REACTIONS as readonly string[]).includes(emoji)) throw new Error("Onbekende reactie");
+  const { supabase, user } = await requireUser();
+  const { data: existing } = await supabase
+    .from("workout_reactions")
+    .select("emoji")
+    .eq("workout_id", workoutId)
+    .eq("user_id", user.id)
+    .eq("emoji", emoji)
+    .maybeSingle();
+  if (existing) {
+    await supabase.from("workout_reactions").delete().eq("workout_id", workoutId).eq("user_id", user.id).eq("emoji", emoji);
+  } else {
+    await supabase.from("workout_reactions").insert({ workout_id: workoutId, emoji });
+  }
+  refresh();
+}
+
+export async function addComment(workoutId: string, formData: FormData) {
+  const body = String(formData.get("body") ?? "").trim().slice(0, 500);
+  if (!body) return;
+  const { supabase } = await requireUser();
+  await supabase.from("workout_comments").insert({ workout_id: workoutId, body });
+  refresh();
+}
+
+export async function deleteComment(id: string) {
+  const { supabase, user } = await requireUser();
+  await supabase.from("workout_comments").delete().eq("id", id).eq("user_id", user.id);
+  refresh();
 }

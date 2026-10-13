@@ -124,7 +124,7 @@ export default async function Home() {
         </Link>
       )}
 
-      <Link href="/week" className="block card p-4">
+      <Link href="/logboek" className="block card p-4">
         <div className="flex items-baseline justify-between">
           <p className="font-semibold">Deze week</p>
           <p className="text-sm text-mute">

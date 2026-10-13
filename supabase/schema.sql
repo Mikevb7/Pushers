@@ -161,3 +161,39 @@ create policy "eigen coach" on public.coach_advice for all to authenticated
 grant usage on schema public to authenticated;
 grant select, insert, update, delete on public.workouts, public.sets, public.habit_logs, public.coach_advice to authenticated;
 grant select, update on public.profiles to authenticated;
+
+-- ---------- Reacties op trainingen ----------
+create table if not exists public.workout_reactions (
+  workout_id uuid not null references public.workouts (id) on delete cascade,
+  user_id uuid not null default auth.uid() references public.profiles (id) on delete cascade,
+  emoji text not null check (emoji in ('💪', '🔥', '😂', '👏')),
+  created_at timestamptz not null default now(),
+  primary key (workout_id, user_id, emoji)
+);
+
+create table if not exists public.workout_comments (
+  id uuid primary key default gen_random_uuid(),
+  workout_id uuid not null references public.workouts (id) on delete cascade,
+  user_id uuid not null default auth.uid() references public.profiles (id) on delete cascade,
+  body text not null check (char_length(trim(body)) between 1 and 500),
+  created_at timestamptz not null default now()
+);
+create index if not exists comments_workout on public.workout_comments (workout_id, created_at);
+
+alter table public.workout_reactions enable row level security;
+alter table public.workout_comments enable row level security;
+
+drop policy if exists "crew leest reacties" on public.workout_reactions;
+create policy "crew leest reacties" on public.workout_reactions for select to authenticated using (true);
+drop policy if exists "eigen reacties" on public.workout_reactions;
+create policy "eigen reacties" on public.workout_reactions for all to authenticated
+  using (user_id = auth.uid()) with check (user_id = auth.uid());
+
+drop policy if exists "crew leest comments" on public.workout_comments;
+create policy "crew leest comments" on public.workout_comments for select to authenticated using (true);
+drop policy if exists "eigen comments plaatsen" on public.workout_comments;
+create policy "eigen comments plaatsen" on public.workout_comments for insert to authenticated
+  with check (user_id = auth.uid());
+drop policy if exists "eigen comments verwijderen" on public.workout_comments;
+create policy "eigen comments verwijderen" on public.workout_comments for delete to authenticated
+  using (user_id = auth.uid());

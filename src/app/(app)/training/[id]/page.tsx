@@ -2,6 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import { loadActiveAdvice, loadSets, loadWorkouts, requireUser } from "@/lib/data";
 import { EXERCISE_MAP, formatLoad, optionsFor } from "@/lib/exercises";
 import { planFor } from "@/lib/plan";
+import { lastSessionSets } from "@/lib/history";
 import { sessionsFor, suggest, type Suggestion } from "@/lib/progression";
 import type { GymDay } from "@/lib/schedule";
 import type { SetRow, Workout } from "@/lib/types";
@@ -59,6 +60,7 @@ export default async function TrainingPage({
     const sug: Suggestion = base ? suggest(base, ex, sessions) : { kind: "first", weight: null, reps: 10, text: "" };
     const last = sessions[0];
     info[exId] = {
+      lastSets: lastSessionSets(history, exId),
       suggestion: sug,
       last: last
         ? `${formatLoad(exId, Math.max(...last.sets.map((s) => Number(s.weight_kg))))} × ${last.sets.map((s) => s.reps).join(", ")}`

@@ -61,3 +61,21 @@ export interface CoachAdvice {
   adjustments: Adjustment[];
   valid_until: string;
 }
+
+export const REACTIONS = ["💪", "🔥", "😂", "👏"] as const;
+export type Reaction = (typeof REACTIONS)[number];
+
+export interface WorkoutReaction {
+  workout_id: string;
+  user_id: string;
+  emoji: Reaction;
+  created_at: string;
+}
+
+export interface WorkoutComment {
+  id: string;
+  workout_id: string;
+  user_id: string;
+  body: string;
+  created_at: string;
+}

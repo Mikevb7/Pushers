@@ -6,7 +6,7 @@ import { CalendarCheck, Dumbbell, LineChart, Sparkles, Users } from "lucide-reac
 
 const TABS = [
   { href: "/", label: "Vandaag", icon: Dumbbell },
-  { href: "/week", label: "Week", icon: CalendarCheck },
+  { href: "/logboek", label: "Logboek", icon: CalendarCheck },
   { href: "/progressie", label: "Progressie", icon: LineChart },
   { href: "/crew", label: "Crew", icon: Users },
   { href: "/coach", label: "Coach", icon: Sparkles },

@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "./supabase/server";
 import { addDays, dayKey } from "./dates";
 import type { DatedSet } from "./stats";
-import type { CoachAdvice, HabitLog, Profile, SetRow, Workout } from "./types";
+import type { CoachAdvice, HabitLog, Profile, SetRow, Workout, WorkoutComment, WorkoutReaction } from "./types";
 
 /** Ingelogde gebruiker, lokaal gecontroleerd via de JWT (snel, geen netwerkrondje). */
 export async function requireUser() {
@@ -59,6 +59,16 @@ export async function loadHabits(supabase: Supa, userId?: string, sinceDays = 12
 export async function loadProfiles(supabase: Supa): Promise<Profile[]> {
   const { data } = await supabase.from("profiles").select("*").order("display_name");
   return (data ?? []) as Profile[];
+}
+
+/** Reacties en comments voor een set trainingen. Werkt ook als de tabellen (nog) niet bestaan. */
+export async function loadSocial(supabase: Supa, workoutIds: string[]) {
+  if (!workoutIds.length) return { reactions: [] as WorkoutReaction[], comments: [] as WorkoutComment[] };
+  const [r, c] = await Promise.all([
+    supabase.from("workout_reactions").select("*").in("workout_id", workoutIds),
+    supabase.from("workout_comments").select("*").in("workout_id", workoutIds).order("created_at"),
+  ]);
+  return { reactions: (r.data ?? []) as WorkoutReaction[], comments: (c.data ?? []) as WorkoutComment[] };
 }
 
 export async function loadActiveAdvice(supabase: Supa, userId: string): Promise<CoachAdvice[]> {

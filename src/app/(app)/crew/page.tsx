@@ -1,9 +1,10 @@
 import Link from "next/link";
-import { Droplet, Flame, HeartPulse, Pill, Trophy } from "lucide-react";
-import { loadHabits, loadProfiles, loadSets, loadWorkouts, requireMe } from "@/lib/data";
-import { addDays, dayKey, timeAgo } from "@/lib/dates";
-import { EXERCISE_MAP, formatLoad } from "@/lib/exercises";
-import { DAY_LABEL } from "@/lib/schedule";
+import { ChevronRight, Droplet, Flame, Pill } from "lucide-react";
+import { loadHabits, loadProfiles, loadSets, loadSocial, loadWorkouts, requireMe } from "@/lib/data";
+import { summarize } from "@/lib/history";
+import { reactionState } from "@/lib/social";
+import { WorkoutCard } from "@/components/WorkoutCard";
+import { addDays, dayKey } from "@/lib/dates";
 import { habitStreak, weekStatus, weekStreak } from "@/lib/rotation";
 import { CrewName } from "@/components/CrewName";
 import { themeFor } from "@/lib/themes";
@@ -56,6 +57,9 @@ export default async function CrewPage({ searchParams }: { searchParams: Promise
     }))
     .sort((a, b) => b.w.completed_at!.localeCompare(a.w.completed_at!))
     .slice(0, 30);
+  const social = await loadSocial(supabase, feed.map((f) => f.w.id));
+  const setsBy = new Map<string, typeof sets>();
+  for (const s of sets) setsBy.set(s.user_id, [...(setsBy.get(s.user_id) ?? []), s]);
 
   return (
     <div className="space-y-7">
@@ -78,7 +82,7 @@ export default async function CrewPage({ searchParams }: { searchParams: Promise
           {board.map((b, i) => (
             <li key={b.p.id}>
               <Link
-                href={`/progressie?${b.p.id === user.id ? "" : `user=${b.p.id}&`}periode=${period}`}
+                href={`/crew/${b.p.id}`}
                 className={`flex items-center gap-3 rounded-lg px-3 py-3 ${themeFor(b.p.id) === "pride" ? "pride-row" : b.p.id === user.id ? "bg-steel-2" : "bg-steel"}`}
               >
                 <span className={`display w-6 text-2xl font-bold ${i === 0 && b.pct !== null ? "text-pin-deep" : "text-mute"}`}>{i + 1}</span>
@@ -106,6 +110,7 @@ export default async function CrewPage({ searchParams }: { searchParams: Promise
                   </span>
                 </span>
                 <span className={`display text-3xl font-bold ${b.pct !== null && b.pct > 0 ? "text-go" : "text-mute"}`}>{formatPct(b.pct)}</span>
+                <ChevronRight size={16} className="text-mute" aria-hidden />
               </Link>
             </li>
           ))}
@@ -116,36 +121,21 @@ export default async function CrewPage({ searchParams }: { searchParams: Promise
       </section>
 
       <section>
-        <h2 className="mb-3 font-semibold">Afgelopen twee weken</h2>
+        <h2 className="mb-3 font-semibold">Feed</h2>
         {feed.length === 0 ? (
           <p className="card p-4 text-sm text-mute">Nog niks gebeurd. Wie gaat er als eerste?</p>
         ) : (
-          <ul className="space-y-2">
-            {feed.map(({ w, prs, sets }) => (
-              <li key={w.id} className={`card p-3 ${themeFor(w.user_id) === "pride" ? "pride-row" : ""}`}>
-                <div className="flex items-baseline gap-2">
-                  {w.day_type === "cardio" && <HeartPulse size={15} className="self-center text-go" />}
-                  <p className="flex-1">
-                    <span className="font-semibold">
-                      {w.user_id === user.id ? "Jij" : <CrewName userId={w.user_id} name={name(w.user_id)} />}
-                    </span>{" "}
-                    {w.day_type === "cardio"
-                      ? `deed cardio: ${w.cardio_description}${w.cardio_minutes ? `, ${w.cardio_minutes} min` : ""}`
-                      : `deed ${DAY_LABEL[w.day_type]}${w.quick_check ? "" : `, ${sets} sets`}`}
-                  </p>
-                  <span className="shrink-0 text-xs text-mute">{timeAgo(w.completed_at!)}</span>
-                </div>
-                {prs.length > 0 && (
-                  <ul className="mt-2 space-y-1">
-                    {prs.slice(0, 2).map((p) => (
-                      <li key={p.exerciseId} className="flex items-center gap-2 text-sm">
-                        <Trophy size={14} className="shrink-0 text-pin-deep" />
-                        Record {EXERCISE_MAP[p.exerciseId]?.name}: {formatLoad(p.exerciseId, p.weight)} × {p.reps}
-                      </li>
-                    ))}
-                    {prs.length > 2 && <li className="pl-[22px] text-sm text-mute">en nog {prs.length - 2} andere records</li>}
-                  </ul>
-                )}
+          <ul className="space-y-2.5">
+            {feed.map(({ w, prs }) => (
+              <li key={w.id}>
+                <WorkoutCard
+                  w={w}
+                  summary={w.day_type === "cardio" ? null : summarize(w, setsBy.get(w.user_id) ?? [], bw[w.user_id] ?? 75)}
+                  who={{ id: w.user_id, name: name(w.user_id), isMe: w.user_id === user.id }}
+                  prs={prs}
+                  reactions={reactionState(social.reactions, w.id, user.id)}
+                  comments={social.comments.filter((c) => c.workout_id === w.id).length}
+                />
               </li>
             ))}
           </ul>

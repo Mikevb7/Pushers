@@ -44,15 +44,26 @@ export function exerciseSeries(sets: DatedSet[], exerciseId: string, bodyweight 
 export type Period = "week" | "maand" | "start";
 
 /**
+ * De allereerste keer is vaak aftasten: veel te licht, of drie verschillende gewichten.
+ * Was die eerste keer duidelijk lichter (>15%) dan de tweede, dan telt de tweede als startpunt.
+ */
+export function withoutProbe(series: SessionPoint[]): SessionPoint[] {
+  if (series.length >= 2 && series[0].e1rm < series[1].e1rm * 0.85) return series.slice(1);
+  return series;
+}
+
+/**
  * Hoeveel % sterker op één oefening.
- * - start: beste van de laatste 2 trainingen t.o.v. de eerste training
+ * - start: beste van de laatste 2 trainingen t.o.v. de eerste (een duidelijk te lichte eerste keer telt niet)
  * - week/maand: beste in de periode t.o.v. het beste daarvóór
  */
 export function exerciseProgress(series: SessionPoint[], period: Period, today = dayKey()): number | null {
   if (series.length < 2) return null;
   if (period === "start") {
-    const base = series[0].e1rm;
-    const recent = Math.max(...series.slice(-2).map((p) => p.e1rm));
+    const s = withoutProbe(series);
+    if (s.length < 2) return null;
+    const base = s[0].e1rm;
+    const recent = Math.max(...s.slice(1).slice(-2).map((p) => p.e1rm));
     return base > 0 ? ((recent - base) / base) * 100 : null;
   }
   const from = addDays(today, period === "week" ? -6 : -29);
@@ -61,9 +72,10 @@ export function exerciseProgress(series: SessionPoint[], period: Period, today =
   if (!inside.length) return null;
   if (!before.length) {
     // Pas in deze periode begonnen: vergelijk met je eerste training in de periode.
-    if (inside.length < 2) return null;
-    const base = inside[0].e1rm;
-    const now = Math.max(...inside.slice(1).map((p) => p.e1rm));
+    const s = withoutProbe(inside);
+    if (s.length < 2) return null;
+    const base = s[0].e1rm;
+    const now = Math.max(...s.slice(1).map((p) => p.e1rm));
     return base > 0 ? ((now - base) / base) * 100 : null;
   }
   const base = Math.max(...before.map((p) => p.e1rm));

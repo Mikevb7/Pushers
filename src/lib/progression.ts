@@ -1,5 +1,6 @@
 // Progressive overload: vaste regels die per oefening het volgende gewicht voorstellen.
 import { formatLoad, type Exercise } from "./exercises";
+import { e1rm } from "./stats";
 import type { PlanItem } from "./schedule";
 import type { SetRow } from "./types";
 
@@ -63,22 +64,74 @@ export function suggest(item: PlanItem, ex: Exercise, history: Session[]): Sugge
     };
   }
 
-  const last = history[0].sets;
-  const w = topWeight(last);
-  const atW = last.filter((s) => Number(s.weight_kg) === w);
-  const expected = Math.min(item.sets, last.length);
-  const allTop = atW.length >= expected && atW.every((s) => s.reps >= item.repMax);
-  const tooEasy = last.every((s) => s.rir !== null && s.rir >= 3) && last.every((s) => s.reps >= item.repMin);
+  const bodyweight = ex.load === "lichaamsgewicht";
+  const est = (x: SetRow) => e1rm(Number(x.weight_kg), x.reps, ex);
 
-  if (allTop || tooEasy) {
+  // Uitschieter: een training die ineens >50% sterker is dan de keer ervoor (bijv. verkeerde
+  // oefening gelogd) gebruiken we niet als basis. Dan rekenen we met de training daarvoor.
+  let ref = history[0];
+  if (history.length >= 2 && !bodyweight) {
+    const a = Math.max(...history[0].sets.map(est));
+    const b = Math.max(...history[1].sets.map(est));
+    if (b > 0 && a > b * 1.5) ref = history[1];
+  }
+  const last = ref.sets;
+
+  // Beste set (geschatte max) is de basis, niet de eerste of lichtste set.
+  const top = last.reduce((a, b) => (est(b) > est(a) ? b : a));
+  const w = Number(top.weight_kg);
+  const atW = last.filter((x) => Number(x.weight_kg) === w);
+  const expected = Math.min(item.sets, last.length);
+  const allTop = atW.length >= expected && atW.every((x) => x.reps >= item.repMax);
+  const aboveRange = top.reps > item.repMax;
+  // Opbouwsets (lichter dan je beste set) tellen niet mee; zat je beste set op de top van de range
+  // en waren de rest alleen opbouw, dan ook omhoog.
+  const rampedToTop = top.reps >= item.repMax && atW.every((x) => x.reps >= item.repMax);
+  const tooEasy = last.every((x) => x.rir !== null && x.rir >= 3) && last.every((x) => x.reps >= item.repMin);
+
+  /** Gewicht voor `reps` herhalingen op basis van je geschatte max, in stappen van het apparaat. */
+  const weightFor = (reps: number, dir: "up" | "down") => {
+    const target = est(top) / (1 + reps / 30);
+    let k = Math.round((target - w) / ex.increment);
+    if (dir === "up") k = Math.min(Math.max(k, 1), Math.max(1, Math.floor((w * 0.1) / ex.increment)));
+    else k = Math.max(Math.min(k, -1), -Math.max(1, Math.floor((w * 0.2) / ex.increment)));
+    return round(Math.max(ex.increment, w + k * ex.increment));
+  };
+  const repsAt = (weight: number) =>
+    Math.min(item.repMax, Math.max(item.repMin, Math.round(30 * (est(top) / weight - 1))));
+
+  if (!bodyweight && (allTop || aboveRange || rampedToTop || tooEasy)) {
+    const next = weightFor(item.repMin + 1, "up");
+    const why = aboveRange
+      ? `Vorige keer ${kg(w)} × ${top.reps}, boven je range van ${item.repMin}-${item.repMax}.`
+      : allTop || rampedToTop
+        ? `Vorige keer ${item.repMax}+ reps op ${kg(w)}.`
+        : `Vorige keer had je nog 3+ reps over.`;
+    return {
+      kind: "increase",
+      weight: next,
+      reps: repsAt(next),
+      text: `${why} Omhoog naar ${kg(next)}${unit ? ` ${unit}` : ""} voor ±${repsAt(next)} reps.`,
+    };
+  }
+  if (bodyweight && (allTop || tooEasy)) {
     const next = round(w + ex.increment);
     return {
       kind: "increase",
       weight: next,
       reps: item.repMin,
-      text: allTop
-        ? `Vorige keer alle sets ${item.repMax}+ reps. Omhoog naar ${kg(next)}${unit ? ` ${unit}` : ""}.`
-        : `Vorige keer had je nog 3+ reps over. Omhoog naar ${kg(next)}${unit ? ` ${unit}` : ""}.`,
+      text: `Vorige keer ${item.repMax}+ reps. Doe er ${kg(next)} ${unit} bij.`,
+    };
+  }
+
+  // Te zwaar: je beste set zat onder je range. Iets lichter, zodat je weer in de range komt.
+  if (!bodyweight && top.reps < item.repMin) {
+    const lighter = weightFor(item.repMin + 1, "down");
+    return {
+      kind: "hold",
+      weight: lighter,
+      reps: repsAt(lighter),
+      text: `Vorige keer ${kg(w)} × ${top.reps}, onder je range. Ga naar ${kg(lighter)}${unit ? ` ${unit}` : ""} voor ±${repsAt(lighter)} reps.`,
     };
   }
 

@@ -59,6 +59,36 @@ describe("progressive overload", () => {
     const s = suggest(item, ex, [sess([12, 10, 9].map((r, i) => set({ exercise_id: ex.id, weight_kg: 50, reps: r, set_number: i + 1 })))]);
     expect(s).toMatchObject({ kind: "hold", weight: 50, reps: 12 });
   });
+  it("aftasten met 3 gewichten, beste set op de top -> omhoog op basis van die set", () => {
+    // 20x15, 25x14, 30x12 bij 8-12: vroeger "blijf op 30 voor 12", nu omhoog
+    const s = suggest(item, ex, [
+      sess([
+        set({ exercise_id: ex.id, weight_kg: 20, reps: 15, set_number: 1 }),
+        set({ exercise_id: ex.id, weight_kg: 25, reps: 14, set_number: 2 }),
+        set({ exercise_id: ex.id, weight_kg: 30, reps: 12, set_number: 3 }),
+      ]),
+    ]);
+    expect(s.kind).toBe("increase");
+    expect(s.weight).toBe(35); // chest press in stappen van 5, max +10% maar minstens 1 stap
+    expect(s.reps).toBeGreaterThanOrEqual(8);
+  });
+  it("boven de range met één set -> omhoog", () => {
+    const s = suggest(item, ex, [sess([set({ exercise_id: ex.id, weight_kg: 50, reps: 16 })])]);
+    expect(s.kind).toBe("increase");
+    expect(s.text).toContain("boven je range");
+  });
+  it("onder de range -> lichter", () => {
+    const s = suggest(item, ex, [sess([1, 2].map((i) => set({ exercise_id: ex.id, weight_kg: 60, reps: 5, set_number: i })))]);
+    expect(s.weight).toBeLessThan(60);
+    expect(s.text).toContain("onder je range");
+  });
+  it("uitschieter (>50% sterker dan de keer ervoor) wordt genegeerd", () => {
+    const h = [
+      sess([set({ exercise_id: ex.id, weight_kg: 90, reps: 10, workout_id: "b" })], "2026-10-05"),
+      sess([set({ exercise_id: ex.id, weight_kg: 50, reps: 10, workout_id: "a" })], "2026-10-01"),
+    ];
+    expect(suggest(item, ex, h)).toMatchObject({ kind: "hold", weight: 50 });
+  });
   it("3x stilstand wordt gemeld", () => {
     const h = [3, 2, 1].map((d) => sess([set({ exercise_id: ex.id, weight_kg: 50, reps: 9, workout_id: `w${d}` })], `2026-10-0${d}`));
     expect(suggest(item, ex, h).kind).toBe("stall");
@@ -183,6 +213,17 @@ describe("robuustheid", () => {
       date: "2026-10-10T13:00:00Z",
     }));
     expect(exerciseSeries(rows, "cable-overhead-ext")).toHaveLength(1);
+  });
+});
+
+describe("aftasten bij de eerste keer", () => {
+  it("een veel te lichte eerste keer telt niet als startpunt", () => {
+    const pts = [
+      { date: "2026-09-01", workoutId: "a", e1rm: 30, weight: 20, reps: 15 },
+      { date: "2026-09-04", workoutId: "b", e1rm: 50, weight: 40, reps: 8 },
+      { date: "2026-09-08", workoutId: "c", e1rm: 55, weight: 42, reps: 9 },
+    ];
+    expect(Math.round(exerciseProgress(pts, "start")!)).toBe(10); // 50 -> 55, niet 30 -> 55
   });
 });
 

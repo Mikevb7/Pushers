@@ -1,5 +1,5 @@
 // Welke training is de volgende, weekoverzicht en streaks.
-import { ROTATION, GYM_SESSIONS_PER_WEEK, type GymDay } from "./schedule";
+import { DAY_LABEL, ROTATION, GYM_SESSIONS_PER_WEEK, type GymDay } from "./schedule";
 import { addDays, dayKey, weekStart } from "./dates";
 import type { HabitLog, Workout } from "./types";
 
@@ -53,13 +53,60 @@ export function consecutiveGymDays(workouts: Workout[], today = dayKey()): numbe
   return n;
 }
 
+// Spiergroepen per trainingsdag, voor het rustadvies. Buik zit er bewust niet in:
+// die herstelt snel en zit in zowel Legs als Upper.
+const DAY_MUSCLES: Record<GymDay, string[]> = {
+  push: ["borst", "schouders", "triceps"],
+  pull: ["rug", "biceps"],
+  legs: ["benen", "billen"],
+  upper: ["borst", "rug", "schouders", "biceps", "triceps"],
+};
+
+function joinNl(xs: string[]): string {
+  return xs.length <= 1 ? (xs[0] ?? "") : `${xs.slice(0, -1).join(", ")} en ${xs[xs.length - 1]}`;
+}
+
+/** Per spiergroep van de volgende training: hoeveel dagen geleden die voor het laatst gewerkt heeft. */
+function muscleRest(workouts: Workout[], next: GymDay, today: string): Map<string, number> {
+  const rest = new Map<string, number>();
+  for (const back of [1, 2]) {
+    const key = addDays(today, -back);
+    for (const w of done(workouts).filter(isGym)) {
+      if (dayKey(w.started_at) !== key) continue;
+      for (const m of DAY_MUSCLES[w.day_type as GymDay] ?? []) {
+        if (DAY_MUSCLES[next].includes(m) && !rest.has(m)) rest.set(m, back);
+      }
+    }
+  }
+  return rest;
+}
+
+/**
+ * Rustadvies voor vandaag. Kijkt naar welke spieren de volgende training raakt
+ * en wanneer die voor het laatst gewerkt hebben, niet alleen naar het aantal dagen op rij.
+ */
 export function trainingAdvice(workouts: Workout[], today = dayKey()): string | null {
   const week = weekStatus(workouts, today);
   const trainedToday = week.days.find((d) => d.key === today)?.workouts.some(isGym);
   if (trainedToday) return null;
   if (week.gymDone >= GYM_SESSIONS_PER_WEEK) return "Je 4 gymtrainingen zitten erin. Rust, of doe je cardio.";
+
+  const next = nextGymDay(workouts);
+  const label = DAY_LABEL[next];
   const streak = consecutiveGymDays(workouts, today);
-  if (streak >= 3) return `Je hebt ${streak} dagen achter elkaar getraind. Een rustdag levert je vandaag meer op.`;
+  const rest = muscleRest(workouts, next, today);
+  const yesterday = [...rest].filter(([, d]) => d === 1).map(([m]) => m);
+  const twoDays = [...rest].filter(([, d]) => d === 2).map(([m]) => m);
+
+  if (streak >= 4) return `Je hebt ${streak} dagen achter elkaar getraind. Neem vandaag rust, dan kom je sterker terug.`;
+  if (yesterday.length)
+    return `Je ${joinNl(yesterday)} ${yesterday.length > 1 ? "hebben" : "heeft"} gisteren al gewerkt. Rust vandaag of doe cardio, en doe ${label} morgen.`;
+  if (streak >= 3) {
+    const extra = twoDays.length
+      ? `Je ${joinNl(twoDays)} ${twoDays.length > 1 ? "hebben" : "heeft"} pas 2 dagen rust, dus voel je je moe, wacht dan een dag.`
+      : "De spieren van vandaag zijn uitgerust.";
+    return `${streak} dagen op rij getraind. ${label} kan vandaag: ${extra} Plan morgen wel een rustdag.`;
+  }
   return null;
 }
 

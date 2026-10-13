@@ -127,6 +127,22 @@ describe("rotatie en streaks", () => {
     expect(consecutiveGymDays(ws, "2026-10-08")).toBe(3);
     expect(trainingAdvice(ws, "2026-10-08")).toMatch(/rustdag/);
   });
+  it("rustadvies kijkt naar spiergroepen", () => {
+    // Push za, Pull zo, Legs ma -> Upper di: kan, rug en biceps pas 2 dagen rust
+    const mike = [wo("push", "2026-10-10"), wo("pull", "2026-10-11"), wo("legs", "2026-10-12")];
+    const a = trainingAdvice(mike, "2026-10-13")!;
+    expect(a).toMatch(/Upper kan vandaag/);
+    expect(a).toMatch(/rug en biceps/);
+    expect(a).not.toMatch(/borst/);
+    // Upper gisteren -> Push vandaag: borst, schouders en triceps net getraind
+    const b = trainingAdvice([wo("legs", "2026-10-11"), wo("upper", "2026-10-12")], "2026-10-13")!;
+    expect(b).toMatch(/borst, schouders en triceps hebben gisteren/);
+    // Push gisteren -> Pull vandaag: geen overlap, geen melding
+    expect(trainingAdvice([wo("push", "2026-10-12")], "2026-10-13")).toBeNull();
+    // 4 dagen op rij -> rust
+    const four = [wo("push", "2026-10-09"), wo("pull", "2026-10-10"), wo("legs", "2026-10-11"), wo("upper", "2026-10-12")];
+    expect(trainingAdvice(four, "2026-10-13")).toMatch(/Neem vandaag rust/);
+  });
   it("water streak", () => {
     const logs = ["2026-10-07", "2026-10-08"].map((day) => ({ user_id: "u1", day, water_ml: 3000, creatine: true }));
     expect(habitStreak(logs, (l) => l.water_ml >= 3000, "2026-10-09")).toBe(2);

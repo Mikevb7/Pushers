@@ -481,6 +481,7 @@ export function TrainingSession({ workoutId, day, startedAt, items, notes, info,
   const activeIndex = chosen !== null && chosenOpen ? chosen : firstOpen;
 
   const [saveError, setSaveError] = useState<string | null>(null);
+  const pct = totalPlanned ? Math.round((totalDone / totalPlanned) * 100) : 0;
 
   // Optimistisch: de set staat direct in beeld, het opslaan gebeurt op de achtergrond.
   async function onLog(
@@ -556,24 +557,36 @@ export function TrainingSession({ workoutId, day, startedAt, items, notes, info,
 
   return (
     <div className="space-y-4">
-      <header className="sticky top-0 z-20 -mx-4 flex items-center gap-3 border-b border-line bg-steel/95 px-4 py-3 backdrop-blur">
-        <Link href="/" aria-label="Terug" className="p-1 text-mute">
-          <ArrowLeft size={22} />
-        </Link>
-        <div className="flex-1">
-          <p className="display text-3xl font-bold uppercase">{DAY_LABEL[day]}</p>
-          {editMode && <p className="text-xs text-mute">Training aanpassen: tik op een set om hem te wijzigen</p>}
+      <header className="sticky top-0 z-20 -mx-4 border-b border-line bg-steel/95 px-4 pb-2.5 pt-3 backdrop-blur">
+        <div className="flex items-center gap-3">
+          <Link href="/" aria-label="Terug" className="p-1 text-mute">
+            <ArrowLeft size={22} />
+          </Link>
+          <div className="flex-1">
+            <p className="display text-3xl font-bold uppercase">{DAY_LABEL[day]}</p>
+            {editMode && <p className="text-xs text-mute">Training aanpassen: tik op een set om hem te wijzigen</p>}
+          </div>
+          <div className="text-right text-sm text-mute">
+            <p>
+              {totalDone}/{totalPlanned} sets
+            </p>
+            {!editMode && <Elapsed since={startedAt} />}
+          </div>
         </div>
-        <div className="text-right text-sm text-mute">
-          <p>
-            {totalDone}/{totalPlanned} sets
-          </p>
-          {!editMode && <Elapsed since={startedAt} />}
+        <div className="mt-2 flex items-center gap-3">
+          <div
+            className="h-2.5 flex-1 overflow-hidden rounded-full bg-line"
+            role="progressbar"
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={pct}
+            aria-label="Voortgang training"
+          >
+            <div className="h-full rounded-full bg-pin transition-[width] duration-500" style={{ width: `${pct}%` }} />
+          </div>
+          <span className={`display w-12 text-right text-xl font-bold ${pct === 100 ? "text-go" : ""}`}>{pct}%</span>
         </div>
       </header>
-      <div className="h-1.5 overflow-hidden rounded-full bg-line">
-        <div className="h-full bg-pin transition-[width]" style={{ width: `${(totalDone / totalPlanned) * 100}%` }} />
-      </div>
 
       {saveError && <p className="rounded-lg border border-warn/40 bg-warn/10 px-3 py-2.5 text-sm">{saveError}</p>}
 

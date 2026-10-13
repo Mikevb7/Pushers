@@ -1,9 +1,9 @@
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowRight, Check, ChevronRight, Sparkles } from "lucide-react";
+import { ArrowRight, Check, ChevronDown, ChevronRight, Repeat, Sparkles } from "lucide-react";
 import { closeStaleWorkouts, loadActiveAdvice, loadHabits, loadSets, loadWorkouts, requireMe } from "@/lib/data";
 import { dayKey, WEEKDAY_SHORT } from "@/lib/dates";
-import { DAY_LABEL, PLAN, GYM_SESSIONS_PER_WEEK } from "@/lib/schedule";
+import { DAY_LABEL, PLAN, GYM_SESSIONS_PER_WEEK, ROTATION } from "@/lib/schedule";
 import { habitStreak, nextGymDay, trainingAdvice, weekStatus } from "@/lib/rotation";
 import { formatPct, overallProgress } from "@/lib/stats";
 import { planFor } from "@/lib/plan";
@@ -91,6 +91,28 @@ export default async function Home() {
           </form>
         </div>
       </section>
+
+      {!openToday && (
+        <details className="card group px-4 py-3">
+          <summary className="flex cursor-pointer list-none items-center gap-2 text-sm font-medium">
+            <Repeat size={15} className="text-pin-deep" aria-hidden />
+            <span className="flex-1">Samen met iemand trainen? Kies een andere training</span>
+            <ChevronDown size={16} className="text-mute transition-transform group-open:rotate-180" aria-hidden />
+          </summary>
+          <p className="mt-2 text-sm text-mute">
+            Alleen doen als het echt moet, bijvoorbeeld om met een maat mee te trainen. Je schema gaat daarna verder vanaf de training die je kiest.
+          </p>
+          <div className="mt-3 grid grid-cols-3 gap-2">
+            {ROTATION.filter((d) => d !== startDay).map((d) => (
+              <form key={d} action={startWorkout.bind(null, d)}>
+                <SubmitButton pendingText="…" className="w-full rounded-xl bg-steel-2 py-3 font-semibold active:brightness-95">
+                  {DAY_LABEL[d]}
+                </SubmitButton>
+              </form>
+            ))}
+          </div>
+        </details>
+      )}
 
       {warn && !openToday && <p className="rounded-2xl border border-warn/30 bg-warn/10 px-4 py-3 text-sm">{warn}</p>}
 

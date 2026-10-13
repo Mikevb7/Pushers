@@ -1,8 +1,11 @@
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowRight, Check, ChevronDown, ChevronRight, Repeat, Sparkles } from "lucide-react";
-import { closeStaleWorkouts, loadActiveAdvice, loadHabits, loadSets, loadWorkouts, requireMe } from "@/lib/data";
-import { dayKey, WEEKDAY_SHORT } from "@/lib/dates";
+import { ArrowRight, Check, ChevronDown, ChevronRight, MessageCircle, Repeat, Sparkles } from "lucide-react";
+import { closeStaleWorkouts, loadActiveAdvice, loadHabits, loadProfiles, loadSets, loadSocial, loadWorkouts, requireMe } from "@/lib/data";
+import { activeNow, doneSentence, joinNames, noticesFor, recentDone } from "@/lib/activity";
+import { DAY_COLOR } from "@/lib/history";
+import { AutoRefresh } from "@/components/AutoRefresh";
+import { dayKey, timeAgo, WEEKDAY_SHORT } from "@/lib/dates";
 import { DAY_LABEL, PLAN, GYM_SESSIONS_PER_WEEK, ROTATION } from "@/lib/schedule";
 import { habitStreak, nextGymDay, trainingAdvice, weekStatus } from "@/lib/rotation";
 import { formatPct, overallProgress } from "@/lib/stats";
@@ -23,12 +26,26 @@ const HERO_PHOTO = {
 export default async function Home() {
   const { supabase, user, profile } = await requireMe();
   await closeStaleWorkouts(supabase, user.id);
-  const [workouts, habits, sets, advice] = await Promise.all([
+  const [workouts, habits, sets, advice, crewWorkouts, profiles] = await Promise.all([
     loadWorkouts(supabase, user.id),
     loadHabits(supabase, user.id, 400),
     loadSets(supabase, user.id),
     loadActiveAdvice(supabase, user.id),
+    loadWorkouts(supabase, undefined, 2),
+    loadProfiles(supabase),
   ]);
+
+  // Crew: wie is nu bezig, wie heeft vandaag/gisteren getraind, reacties op jouw trainingen.
+  const nameOf = (id: string) => (id === user.id ? "Jij" : (profiles.find((p) => p.id === id)?.display_name ?? "Iemand"));
+  const busy = activeNow(crewWorkouts, user.id);
+  const busySets = busy.length
+    ? (((await supabase.from("sets").select("workout_id").in("workout_id", busy.map((w) => w.id))).data ?? []) as { workout_id: string }[])
+    : [];
+  const doneGroups = recentDone(crewWorkouts, user.id).slice(0, 4);
+  const since = new Date(Date.now() - 3 * 24 * 3600 * 1000).toISOString();
+  const myRecent = workouts.filter((w) => w.completed_at && w.completed_at > new Date(Date.now() - 21 * 24 * 3600 * 1000).toISOString());
+  const social = await loadSocial(supabase, myRecent.map((w) => w.id));
+  const notices = noticesFor(myRecent, social.reactions, social.comments, user.id, since).slice(0, 4);
 
   const today = dayKey();
   const pride = themeFor(user.id) === "pride";
@@ -91,6 +108,65 @@ export default async function Home() {
           </form>
         </div>
       </section>
+
+      {(busy.length > 0 || doneGroups.length > 0 || notices.length > 0) && (
+        <section className="card divide-y divide-line overflow-hidden">
+          {busy.map((w) => {
+            const mins = Math.max(1, Math.round((Date.now() - new Date(w.started_at).getTime()) / 60000));
+            const n = busySets.filter((x) => x.workout_id === w.id).length;
+            return (
+              <Link key={w.id} href={`/training/${w.id}/klaar`} className="flex items-center gap-3 px-4 py-3">
+                <span className="relative flex size-3 shrink-0" aria-hidden>
+                  <span className="absolute inline-flex size-full animate-ping rounded-full bg-pin opacity-60" />
+                  <span className="relative inline-flex size-3 rounded-full bg-pin" />
+                </span>
+                <span className="flex-1 text-sm">
+                  <span className="font-semibold">
+                    <CrewName userId={w.user_id} name={nameOf(w.user_id)} />
+                  </span>{" "}
+                  is nu bezig met <span className="font-semibold">{DAY_LABEL[w.day_type]}</span>
+                  <span className="block text-xs text-mute">
+                    {mins} min{n ? `, ${n} sets` : ""}
+                  </span>
+                </span>
+                <ChevronRight size={16} className="text-mute" aria-hidden />
+              </Link>
+            );
+          })}
+          {notices.map((n) => (
+            <Link key={n.id} href={`/training/${n.workoutId}/klaar#reacties`} className="flex items-center gap-3 px-4 py-3">
+              <span className="w-6 shrink-0 text-center text-lg leading-none" aria-hidden>
+                {n.kind === "comment" ? <MessageCircle size={18} className="mx-auto text-pin-deep" /> : n.emojis.slice(0, 2).join("")}
+              </span>
+              <span className="min-w-0 flex-1 text-sm">
+                <span className="font-semibold">{joinNames(n.userIds.map(nameOf))}</span>{" "}
+                {n.kind === "comment" ? (
+                  <>
+                    op je {DAY_LABEL[myRecent.find((w) => w.id === n.workoutId)?.day_type ?? "push"]}:{" "}
+                    <span className="text-mute">&ldquo;{n.body}&rdquo;</span>
+                  </>
+                ) : (
+                  <>reageerde{n.userIds.length > 1 ? "n" : ""} op je {DAY_LABEL[myRecent.find((w) => w.id === n.workoutId)?.day_type ?? "push"]}</>
+                )}
+                <span className="block text-xs text-mute">{timeAgo(n.at)}</span>
+              </span>
+              <ChevronRight size={16} className="text-mute" aria-hidden />
+            </Link>
+          ))}
+          {doneGroups.map((g) => (
+            <Link
+              key={g.key}
+              href={g.userIds.filter((u) => u !== user.id).length === 1 && !g.includesMe ? `/training/${g.workoutIds[0]}/klaar` : "/crew"}
+              className="flex items-center gap-3 px-4 py-3"
+            >
+              <span className="size-3 shrink-0 rounded-full" style={{ background: DAY_COLOR[g.dayType] }} aria-hidden />
+              <span className="flex-1 text-sm">{doneSentence(g, nameOf, user.id)}</span>
+              <ChevronRight size={16} className="text-mute" aria-hidden />
+            </Link>
+          ))}
+          {busy.length > 0 && <AutoRefresh seconds={60} />}
+        </section>
+      )}
 
       {!openToday && (
         <details className="card group px-4 py-3">

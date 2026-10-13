@@ -2,8 +2,8 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useMemo, useState, useTransition } from "react";
-import { ArrowLeft, Check, ChevronDown, ExternalLink, Pencil, Plus, Repeat, Sparkles, Trash2 } from "lucide-react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { ArrowLeft, Check, ChevronDown, ExternalLink, Pencil, Plus, Repeat, Sparkles, Trash2, Zap } from "lucide-react";
 import { EXERCISE_MAP, optionsFor, videoUrl, type Exercise } from "@/lib/exercises";
 import { DAY_LABEL, type GymDay } from "@/lib/schedule";
 import type { PlannedItem } from "@/lib/plan";
@@ -36,6 +36,7 @@ const unitLabel = (ex: Exercise) =>
 const fmt = (n: number) => String(Math.round(n * 100) / 100).replace(".", ",");
 const parse = (s: string) => Number(s.replace(",", "."));
 const RIR = [0, 1, 2, 3];
+const SUPERSET_COLOR: Record<string, string> = { A: "var(--color-pin)", B: "#4f8fd6", C: "#e08a2c" };
 
 function Elapsed({ since }: { since: string }) {
   const [now, setNow] = useState(() => Date.now());
@@ -82,7 +83,11 @@ function SetForm({
   defaultWeight,
   defaultReps,
   onSave,
+  label,
+  hint,
 }: {
+  label?: string;
+  hint?: string;
   ex: Exercise;
   setNumber: number;
   defaultWeight: number | null;
@@ -129,7 +134,14 @@ function SetForm({
 
   return (
     <div className="rounded-2xl border border-pin bg-pin-dim/60 p-3">
-      <p className="mb-2 text-sm text-mute">Set {setNumber}</p>
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <p className="text-sm text-mute">{label ?? `Set ${setNumber}`}</p>
+        {hint && (
+          <span className="inline-flex items-center gap-1 rounded-full bg-pin-deep px-2.5 py-0.5 text-xs font-semibold text-white">
+            <Zap size={12} aria-hidden /> {hint}
+          </span>
+        )}
+      </div>
       <div className="grid grid-cols-[1fr_auto_1fr] items-end gap-2">
         <label className="block">
           <input inputMode="decimal" value={weight} onChange={(e) => setWeight(e.target.value.replace(/[^\d.,]/g, ""))} className={box} aria-label={unitLabel(ex)} />
@@ -268,7 +280,15 @@ function ExerciseBlock({
   onUpdate,
   active,
   onActivate,
+  inGroup = false,
+  formLabel,
+  formHint,
+  scrollSignal = 0,
 }: {
+  inGroup?: boolean;
+  formLabel?: string;
+  formHint?: string;
+  scrollSignal?: number;
   onUpdate: (row: SetRow) => Promise<boolean>;
   active: boolean;
   onActivate: () => void;
@@ -288,16 +308,22 @@ function ExerciseBlock({
   const done = sets.length >= item.sets;
   const sug = info?.suggestion;
   const lastWeight = sets.length ? Number(sets[sets.length - 1].weight_kg) : (sug?.weight ?? null);
+  const ref = useRef<HTMLElement>(null);
+
+  // Na het loggen van een set: scroll naar de oefening die nu aan de beurt is.
+  useEffect(() => {
+    if (scrollSignal > 0 && active) ref.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scrollSignal]);
 
   return (
-    <section className={`card ${done ? "opacity-80" : ""}`}>
+    <section ref={ref} className={`scroll-mt-20 ${inGroup ? "border-t border-line first:border-t-0" : "card"} ${done ? "opacity-80" : ""}`}>
       <button onClick={() => setOpen((o) => !o)} className="flex w-full gap-3 p-3 text-left" aria-expanded={open}>
         <div className="relative size-16 shrink-0 overflow-hidden rounded-lg bg-floor">
           <Image src={ex.photo} alt="" fill sizes="64px" className="object-cover" />
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5">
-            {item.superset && <span className="rounded bg-pin-dim px-1.5 text-xs font-semibold text-pin-deep">Superset {item.superset}</span>}
             {item.coach && <Sparkles size={14} className="text-pin-deep" aria-label="Aangepast door coach" />}
           </div>
           <h3 className="font-semibold leading-tight">{ex.name}</h3>
@@ -383,6 +409,8 @@ function ExerciseBlock({
             key={`${exerciseId}-${sets.length}`}
             ex={ex}
             setNumber={sets.length + 1}
+            label={formLabel}
+            hint={formHint}
             defaultWeight={lastWeight}
             defaultReps={sets.length ? sets[sets.length - 1].reps : (sug?.reps ?? item.repMax)}
             onSave={(v) => onLog(exerciseId, sets.length + 1, v)}
@@ -412,6 +440,9 @@ export function TrainingSession({ workoutId, day, startedAt, items, notes, info,
   });
   const [rest, setRest] = useState<number | null>(null);
   const [chosen, setChosen] = useState<number | null>(null);
+  const [split, setSplit] = useState<Record<string, boolean>>({}); // superset toch los doen
+  const [goNext, setGoNext] = useState<string | null>(null); // "direct door"-melding
+  const [scrollSignal, setScrollSignal] = useState(0);
   const [note, setNote] = useState("");
   const [pending, start] = useTransition();
 
@@ -421,15 +452,43 @@ export function TrainingSession({ workoutId, day, startedAt, items, notes, info,
     [items, sets, swaps],
   );
 
-  const firstOpen = items.findIndex((it, i) => sets.filter((s) => s.exercise_id === (swaps[i] ?? it.exerciseId)).length < it.sets);
-  const chosenOpen =
-    chosen !== null && sets.filter((s) => s.exercise_id === (swaps[chosen] ?? items[chosen].exerciseId)).length < items[chosen].sets;
+  const exOf = (i: number) => swaps[i] ?? items[i].exerciseId;
+  const countIn = (list: SetRow[], i: number) => list.filter((s) => s.exercise_id === exOf(i)).length;
+
+  // Opeenvolgende oefeningen met dezelfde superset-letter vormen samen één blok.
+  const segments = useMemo(() => {
+    const out: { letter: string | null; idx: number[] }[] = [];
+    items.forEach((it, i) => {
+      const prev = out[out.length - 1];
+      if (it.superset && prev?.letter === it.superset) prev.idx.push(i);
+      else out.push({ letter: it.superset ?? null, idx: [i] });
+    });
+    return out.map((g) => (g.idx.length > 1 ? g : { letter: null, idx: g.idx }));
+  }, [items]);
+  const groupOf = (i: number) => segments.find((g) => g.letter && !split[g.letter] && g.idx.includes(i)) ?? null;
+
+  /** In een superset: de oefening met de minste sets is aan de beurt (bij gelijk: de eerste). */
+  function nextInGroup(idx: number[], list: SetRow[]): number | null {
+    const open = idx.filter((i) => countIn(list, i) < items[i].sets);
+    if (!open.length) return null;
+    return open.reduce((best, i) => (countIn(list, i) < countIn(list, best) ? i : best), open[0]);
+  }
+
+  const firstOpenRaw = items.findIndex((it, i) => countIn(sets, i) < it.sets);
+  const firstGroup = firstOpenRaw >= 0 ? groupOf(firstOpenRaw) : null;
+  const firstOpen = firstGroup ? (nextInGroup(firstGroup.idx, sets) ?? firstOpenRaw) : firstOpenRaw;
+  const chosenOpen = chosen !== null && countIn(sets, chosen) < items[chosen].sets;
   const activeIndex = chosen !== null && chosenOpen ? chosen : firstOpen;
 
   const [saveError, setSaveError] = useState<string | null>(null);
 
   // Optimistisch: de set staat direct in beeld, het opslaan gebeurt op de achtergrond.
-  async function onLog(exerciseId: string, setNumber: number, v: { weight: number; reps: number; rir: number | null; drop: { weight: number; reps: number } | null }) {
+  async function onLog(
+    exerciseId: string,
+    setNumber: number,
+    v: { weight: number; reps: number; rir: number | null; drop: { weight: number; reps: number } | null },
+    index: number,
+  ) {
     const tempId = `tmp-${Date.now()}`;
     const temp: SetRow = {
       id: tempId,
@@ -447,7 +506,28 @@ export function TrainingSession({ workoutId, day, startedAt, items, notes, info,
     };
     setSaveError(null);
     setSets((prev) => [...prev, temp]);
-    if (!editMode) setRest(EXERCISE_MAP[exerciseId].isolation ? 90 : 150);
+
+    const after = [...sets, temp];
+    const group = groupOf(index);
+    if (group) {
+      // Superset: pas rust na de laatste oefening van de ronde, anders direct door.
+      const c = countIn(after, index);
+      const roundDone = group.idx.every((i) => countIn(after, i) >= Math.min(c, items[i].sets));
+      const next = nextInGroup(group.idx, after);
+      setChosen(next);
+      setScrollSignal((n) => n + 1);
+      if (!roundDone && next !== null) {
+        setRest(null);
+        setGoNext(EXERCISE_MAP[exOf(next)].name);
+      } else {
+        setGoNext(null);
+        if (!editMode) setRest(group.idx.every((i) => EXERCISE_MAP[exOf(i)].isolation) ? 90 : 120);
+      }
+    } else {
+      setGoNext(null);
+      if (countIn(after, index) >= items[index].sets) setScrollSignal((n) => n + 1);
+      if (!editMode) setRest(EXERCISE_MAP[exerciseId].isolation ? 90 : 150);
+    }
     try {
       const row = await logSet({ workoutId, exerciseId, setNumber, ...v });
       setSets((prev) => prev.map((s) => (s.id === tempId ? (row as SetRow) : s)));
@@ -508,22 +588,87 @@ export function TrainingSession({ workoutId, day, startedAt, items, notes, info,
         </div>
       )}
 
-      {items.map((it, i) => {
-        const exId = swaps[i] ?? it.exerciseId;
+      {segments.map((g) => {
+        const block = (i: number, inGroup: boolean, formLabel?: string, formHint?: string) => {
+          const it = items[i];
+          const exId = exOf(i);
+          return (
+            <ExerciseBlock
+              key={`${i}-${exId}`}
+              item={it}
+              exerciseId={exId}
+              info={info[exId]}
+              sets={sets.filter((s) => s.exercise_id === exId).sort((a, b) => a.set_number - b.set_number)}
+              onSwap={(to) => setSwaps((s) => ({ ...s, [i]: to }))}
+              onLog={(id, n, v) => onLog(id, n, v, i)}
+              onDelete={onDelete}
+              onUpdate={onUpdate}
+              active={i === activeIndex}
+              onActivate={() => setChosen(i)}
+              inGroup={inGroup}
+              formLabel={formLabel}
+              formHint={formHint}
+              scrollSignal={scrollSignal}
+            />
+          );
+        };
+        if (!g.letter) return block(g.idx[0], false);
+
+        const letter = g.letter;
+        const color = SUPERSET_COLOR[letter] ?? SUPERSET_COLOR.A;
+        if (split[letter]) {
+          return (
+            <div key={letter} className="space-y-4">
+              <button
+                onClick={() => setSplit((s) => ({ ...s, [letter]: false }))}
+                className="flex items-center gap-1.5 text-sm font-medium text-pin-deep"
+              >
+                <Zap size={14} /> Superset {letter} los aan het doen. Weer als superset
+              </button>
+              {g.idx.map((i) => block(i, false))}
+            </div>
+          );
+        }
+
+        const rounds = Math.max(...g.idx.map((i) => items[i].sets));
+        const counts = g.idx.map((i) => countIn(sets, i));
+        const round = Math.min(rounds, Math.min(...g.idx.map((i, k) => (counts[k] >= items[i].sets ? Infinity : counts[k]))) + 1);
+        const allDone = g.idx.every((i, k) => counts[k] >= items[i].sets);
         return (
-          <ExerciseBlock
-            key={`${i}-${exId}`}
-            item={it}
-            exerciseId={exId}
-            info={info[exId]}
-            sets={sets.filter((s) => s.exercise_id === exId).sort((a, b) => a.set_number - b.set_number)}
-            onSwap={(to) => setSwaps((s) => ({ ...s, [i]: to }))}
-            onLog={onLog}
-            onDelete={onDelete}
-            onUpdate={onUpdate}
-            active={i === activeIndex}
-            onActivate={() => setChosen(i)}
-          />
+          <section key={letter} className="card relative overflow-hidden">
+            <div className="absolute inset-y-0 left-0 w-1.5" style={{ background: color }} aria-hidden />
+            <header className="flex items-center gap-2 border-b border-line py-2.5 pl-5 pr-3">
+              <Zap size={16} style={{ color }} aria-hidden />
+              <div className="flex-1">
+                <p className="display text-lg font-semibold uppercase leading-none">Superset {letter}</p>
+                <p className="mt-0.5 text-xs text-mute">
+                  {allDone ? `${rounds} rondes gedaan` : `Ronde ${round} van ${rounds}, direct na elkaar, rust na de ronde`}
+                </p>
+              </div>
+              {!allDone && !editMode && (
+                <button
+                  onClick={() => {
+                    setSplit((s) => ({ ...s, [letter]: true }));
+                    setGoNext(null);
+                  }}
+                  className="rounded-full bg-steel-2 px-3 py-1.5 text-xs font-semibold"
+                >
+                  Toch los doen
+                </button>
+              )}
+            </header>
+            <div className="pl-1.5">
+              {g.idx.map((i, k) => {
+                const ahead = g.idx.some((j) => countIn(sets, j) > counts[k]);
+                return block(
+                  i,
+                  true,
+                  `${letter}${k + 1} · ronde ${counts[k] + 1}`,
+                  ahead && !editMode ? "Direct door, geen rust" : undefined,
+                );
+              })}
+            </div>
+          </section>
         );
       })}
 
@@ -568,7 +713,21 @@ export function TrainingSession({ workoutId, day, startedAt, items, notes, info,
       </section>
 
       {rest !== null && <RestTimer key={sets.length} seconds={rest} onDone={() => setRest(null)} />}
-      {rest !== null && <div className="h-16" />}
+      {goNext && rest === null && (
+        <div className="fixed inset-x-0 bottom-0 z-40 pb-[env(safe-area-inset-bottom)]">
+          <div className="mx-auto flex max-w-md items-center gap-3 border-t border-pin-deep bg-pin-deep px-4 py-3 text-white">
+            <Zap size={22} aria-hidden />
+            <div className="flex-1">
+              <p className="display text-2xl font-bold uppercase leading-none">Direct door</p>
+              <p className="text-sm text-white/85">{goNext}, geen rust</p>
+            </div>
+            <button onClick={() => setGoNext(null)} className="rounded-lg bg-white/15 px-4 py-2 font-semibold">
+              Oké
+            </button>
+          </div>
+        </div>
+      )}
+      {(rest !== null || goNext) && <div className="h-16" />}
     </div>
   );
 }

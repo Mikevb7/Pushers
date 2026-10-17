@@ -273,3 +273,50 @@ describe("echte gewichtsblokken", () => {
     expect(ex.stack?.at(-1)).toBe(192.5);
   });
 });
+
+describe("grote sprongen op een blok", () => {
+  const ex = getExercise("rear-delt-fly"); // Impulse: 9 -> 14 is +56%
+  const item = PLAN.pull.items.find((i) => i.exerciseId === "rear-delt-fly")!; // 3x 12-15
+  it("eerst meer reps als de volgende stap veel te zwaar is", () => {
+    const s = suggest(item, ex, [sess([1, 2, 3].map((i) => set({ exercise_id: ex.id, weight_kg: 9, reps: 15, set_number: i })))]);
+    expect(s).toMatchObject({ kind: "hold", weight: 9 });
+    expect(s.reps).toBeGreaterThan(15);
+    expect(s.text).toContain("grote sprong");
+  });
+  it("bij reps ver boven de range toch omhoog, met eerlijke verwachting", () => {
+    const s = suggest(item, ex, [sess([1, 2, 3].map((i) => set({ exercise_id: ex.id, weight_kg: 9, reps: 20, set_number: i })))]);
+    expect(s).toMatchObject({ kind: "increase", weight: 14 });
+    expect(s.text).toContain("grote stap");
+  });
+  it("kleine stap (70 -> 77) gaat gewoon omhoog", () => {
+    const s = suggest(item, ex, [sess([1, 2, 3].map((i) => set({ exercise_id: ex.id, weight_kg: 70, reps: 15, set_number: i })))]);
+    expect(s).toMatchObject({ kind: "increase", weight: 77 });
+  });
+});
+
+describe("keuze van de basis-set en het einde van het blok", () => {
+  it("77 × 10 telt boven 70 × 15 (je zit al op 77)", () => {
+    const ex = getExercise("chest-press");
+    const s = suggest(PLAN.push.items[1], ex, [
+      sess([
+        set({ exercise_id: ex.id, weight_kg: 70, reps: 15, rir: 0, set_number: 1 }),
+        set({ exercise_id: ex.id, weight_kg: 77, reps: 9, rir: 1, set_number: 2 }),
+        set({ exercise_id: ex.id, weight_kg: 77, reps: 10, rir: 0, set_number: 3 }),
+      ]),
+    ]);
+    expect(s).toMatchObject({ kind: "hold", weight: 77, reps: 11 });
+  });
+  it("op het zwaarste gewicht van het blok: meer reps of zwaardere variant", () => {
+    const ex = getExercise("lat-pulldown");
+    const item = PLAN.pull.items.find((i) => i.exerciseId === "lat-pulldown")!;
+    const s = suggest(item, ex, [sess([1, 2, 3].map((i) => set({ exercise_id: ex.id, weight_kg: 91, reps: 12, set_number: i })))]);
+    expect(s).toMatchObject({ kind: "hold", weight: 91 });
+    expect(s.text).toContain("zwaarste gewicht van het blok");
+  });
+  it("net onder de range: blijven en de onderkant halen", () => {
+    const ex = getExercise("pec-deck");
+    const item = PLAN.push.items.find((i) => i.exerciseId === "pec-deck")!;
+    const s = suggest(item, ex, [sess([set({ exercise_id: ex.id, weight_kg: 70, reps: 9 })])]);
+    expect(s).toMatchObject({ kind: "hold", weight: 70, reps: 10 });
+  });
+});

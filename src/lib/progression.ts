@@ -78,7 +78,12 @@ export function suggest(item: PlanItem, ex: Exercise, history: Session[]): Sugge
   const last = ref.sets;
 
   // Beste set (geschatte max) is de basis, niet de eerste of lichtste set.
-  const top = last.reduce((a, b) => (est(b) > est(a) ? b : a));
+  // Van de sets die (bijna) je beste waren, telt de zwaarste. Zo wint 77 × 10 van 70 × 15:
+  // je zit al op 77, dus daar bouw je verder.
+  const bestEst = Math.max(...last.map(est));
+  const top = last
+    .filter((x) => est(x) >= bestEst * 0.93)
+    .reduce((a, b) => (Number(b.weight_kg) > Number(a.weight_kg) || (Number(b.weight_kg) === Number(a.weight_kg) && b.reps > a.reps) ? b : a));
   const w = Number(top.weight_kg);
   const atW = last.filter((x) => Number(x.weight_kg) === w);
   const expected = Math.min(item.sets, last.length);
@@ -107,6 +112,15 @@ export function suggest(item: PlanItem, ex: Exercise, history: Session[]): Sugge
   const repsAt = (weight: number) =>
     Math.min(item.repMax, Math.max(item.repMin, Math.round(30 * (est(top) / weight - 1))));
 
+  const atStackMax = !!ex.stack?.length && snapToStack(ex, w) === ex.stack[ex.stack.length - 1];
+  if (!bodyweight && atStackMax && (allTop || aboveRange || rampedToTop || tooEasy)) {
+    return {
+      kind: "hold",
+      weight: snapToStack(ex, w),
+      reps: Math.min(item.repMax + 5, top.reps + 1),
+      text: `Je zit op het zwaarste gewicht van het blok (${kg(snapToStack(ex, w))}). Ga voor meer reps, 3 tellen omlaag, of kies via "Ander apparaat" een zwaardere variant.`,
+    };
+  }
   if (!bodyweight && (allTop || aboveRange || rampedToTop || tooEasy)) {
     const next = weightFor(item.repMin + 1, "up");
     const why = aboveRange
@@ -114,11 +128,31 @@ export function suggest(item: PlanItem, ex: Exercise, history: Session[]): Sugge
       : allTop || rampedToTop
         ? `Vorige keer ${item.repMax}+ reps op ${kg(w)}.`
         : `Vorige keer had je nog 3+ reps over.`;
+    // Hoeveel reps haal je naar verwachting op de volgende stap? Bij grote sprongen op een blok
+    // (bijv. 9 -> 14 kg) is dat flink minder. Dan eerst meer reps op je huidige gewicht.
+    const realW = snapToStack(ex, w);
+    // Reps tot falen = gedane reps + wat je nog over had (RIR).
+    const capacity = e1rm(Number(top.weight_kg), top.reps + (top.rir ?? 0), ex);
+    const expectReps = ex.plates ? item.repMin : Math.round(30 * (capacity / next - 1));
+    const jumpPct = Math.round((next / realW - 1) * 100);
+    if (expectReps < item.repMin - 2 && top.reps < item.repMax + 5) {
+      const goal = Math.min(item.repMax + 5, Math.max(top.reps + 1, item.repMax + 1));
+      return {
+        kind: "hold",
+        weight: realW,
+        reps: goal,
+        text: `De volgende stap op dit blok is ${kg(next)} (+${jumpPct}%), dat is een grote sprong. Pak eerst ${goal} reps op ${kg(realW)}, dan ga je omhoog.`,
+      };
+    }
+    const reps = repsAt(next);
+    const bigJump = expectReps < item.repMin && jumpPct >= 15;
     return {
       kind: "increase",
       weight: next,
-      reps: repsAt(next),
-      text: `${why} Omhoog naar ${kg(next)}${unit ? ` ${unit}` : ""} voor ±${repsAt(next)} reps.`,
+      reps,
+      text: bigJump
+        ? `${why} Omhoog naar ${kg(next)}${unit ? ` ${unit}` : ""} (+${jumpPct}%, grote stap op dit blok). Reken op ±${Math.max(1, expectReps)} reps en bouw weer op.`
+        : `${why} Omhoog naar ${kg(next)}${unit ? ` ${unit}` : ""} voor ±${reps} reps.`,
     };
   }
   if (bodyweight && (allTop || tooEasy)) {
@@ -132,6 +166,16 @@ export function suggest(item: PlanItem, ex: Exercise, history: Session[]): Sugge
   }
 
   // Te zwaar: je beste set zat onder je range. Iets lichter, zodat je weer in de range komt.
+  // Net onder je range (1-2 reps): blijf erop en haal de onderkant van de range.
+  if (!bodyweight && top.reps < item.repMin && top.reps >= item.repMin - 2) {
+    const real = snapToStack(ex, w);
+    return {
+      kind: "hold",
+      weight: real,
+      reps: item.repMin,
+      text: `Vorige keer ${kg(w)} × ${top.reps}, net onder je range. Blijf op ${kg(real)}${unit ? ` ${unit}` : ""} en ga voor ${item.repMin} reps.`,
+    };
+  }
   if (!bodyweight && top.reps < item.repMin) {
     const lighter = weightFor(item.repMin + 1, "down");
     return {

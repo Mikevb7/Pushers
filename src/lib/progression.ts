@@ -1,5 +1,5 @@
 // Progressive overload: vaste regels die per oefening het volgende gewicht voorstellen.
-import { formatLoad, type Exercise } from "./exercises";
+import { formatLoad, snapToStack, stackStep, type Exercise } from "./exercises";
 import { e1rm } from "./stats";
 import type { PlanItem } from "./schedule";
 import type { SetRow } from "./types";
@@ -92,6 +92,13 @@ export function suggest(item: PlanItem, ex: Exercise, history: Session[]): Sugge
   /** Gewicht voor `reps` herhalingen op basis van je geschatte max, in stappen van het apparaat. */
   const weightFor = (reps: number, dir: "up" | "down") => {
     const target = est(top) / (1 + reps / 30);
+    if (ex.stack?.length) {
+      // Echte gewichten op het blok: minstens 1 stap, hooguit 2 (blokken springen soms flink).
+      const base = ex.stack.indexOf(snapToStack(ex, w));
+      const nearest = ex.stack.indexOf(snapToStack(ex, target)) - base;
+      const n = dir === "up" ? Math.min(Math.max(nearest, 1), 2) : Math.max(Math.min(nearest, -1), -2);
+      return stackStep(ex, w, n);
+    }
     let k = Math.round((target - w) / ex.increment);
     if (dir === "up") k = Math.min(Math.max(k, 1), Math.max(1, Math.floor((w * 0.1) / ex.increment)));
     else k = Math.max(Math.min(k, -1), -Math.max(1, Math.floor((w * 0.2) / ex.increment)));
@@ -146,13 +153,23 @@ export function suggest(item: PlanItem, ex: Exercise, history: Session[]): Sugge
     if (sameWeight && reps[0] <= reps[2]) {
       return {
         kind: "stall",
-        weight: w,
+        weight: snapToStack(ex, w),
         reps: target,
         text: `Staat al 3 trainingen stil op ${kg(w)}. Ga echt tot 0-1 rep over, of check je slaap en eten.`,
       };
     }
   }
 
+  // Gelogd gewicht dat niet op het blok staat (bijv. 30 op een Impulse): pak het dichtstbijzijnde echte gewicht.
+  const real = snapToStack(ex, w);
+  if (real !== w) {
+    return {
+      kind: "hold",
+      weight: real,
+      reps: target,
+      text: `Op dit apparaat is het ${kg(real)} (vorige keer ${kg(w)} gelogd). Ga voor ${target} reps.`,
+    };
+  }
   return {
     kind: "hold",
     weight: w,

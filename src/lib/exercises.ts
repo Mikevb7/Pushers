@@ -31,6 +31,8 @@ export interface Exercise {
   isolation: boolean; // isolatie-oefening: dropset toegestaan
   exclBar?: boolean; // gewicht loggen zonder stang
   plates?: boolean; // gewicht loggen als plaatnummer (machines zonder kg op het blok)
+  stack?: number[]; // de echte gewichten op het blok van dit apparaat (je kiest er één)
+  unit?: "lbs"; // blok staat alleen in lbs (dan log je het getal dat op het blok staat)
   alternatives: string[]; // als het apparaat bezet is
 }
 
@@ -633,9 +635,68 @@ const WHITE_CABLE_VARIANTS = [
   "rope-crunch",
 ];
 
+// ---------- Gewichtsblokken in Sportschool Hierden ----------
+// Elk apparaat heeft zijn eigen sprongen. Zo kun je alleen kiezen wat er echt op het blok staat.
+const range = (from: number, to: number, step: number) =>
+  Array.from({ length: Math.round((to - from) / step) + 1 }, (_, i) => Math.round((from + i * step) * 10) / 10);
+const IMPULSE = [7, 9, 14, 18, 23, 29, 36, 43, 50, 57, 64, 70, 77, 84, 91];
+const IMPULSE_SMALL = [7, 9, 11, 14, 16, 18, 20, 25, 30, 34, 41, 48, 55, 61, 68]; // torso rotation, ab-/adductor
+const IMPULSE_LEG_PRESS = [11, 18, 27, 36, 45, 55, 64, 73, 82, 91, 100, 109, 118, 127, 136];
+const IMPULSE_ARM_CURL_LBS = [15, 20, 25, 30, 35, 40, 45, 55, 65, 75, 90, 105, 120, 135, 150];
+const EVOLVE = [5, 10, 15, 20, 25, 30, 37.5, 45, 52.5, 60, 67.5, 75, 82.5, 90, 97.5, 105];
+const NORMAL_LEG_PRESS = [5, ...range(12.5, 192.5, 7.5)];
+const TECHNOGYM_GLUTE = range(5, 100, 5);
+
+const STACKS: Record<string, Pick<Exercise, "stack" | "unit">> = {
+  "chest-press": { stack: IMPULSE },
+  "pec-deck": { stack: IMPULSE },
+  "pec-fly-machine": { stack: IMPULSE },
+  "shoulder-press": { stack: IMPULSE },
+  "rear-delt-fly": { stack: IMPULSE },
+  "lat-pulldown": { stack: IMPULSE },
+  "chest-supported-row": { stack: IMPULSE },
+  "back-extension": { stack: IMPULSE },
+  "seated-dip-machine": { stack: IMPULSE },
+  "seated-leg-curl": { stack: IMPULSE },
+  "leg-extension": { stack: IMPULSE },
+  "ab-crunch-machine": { stack: IMPULSE },
+  "torso-rotation": { stack: IMPULSE_SMALL },
+  adductor: { stack: IMPULSE_SMALL },
+  "leg-press": { stack: IMPULSE_LEG_PRESS },
+  "calf-raise": { stack: IMPULSE_LEG_PRESS },
+  "machine-arm-curl": { stack: IMPULSE_ARM_CURL_LBS, unit: "lbs" },
+  "leg-press-horizontal": { stack: NORMAL_LEG_PRESS },
+  "standing-glute": { stack: TECHNOGYM_GLUTE },
+  "cable-fly": { stack: EVOLVE },
+  "cable-lateral": { stack: EVOLVE },
+  "cable-rear-delt": { stack: EVOLVE },
+  "evolve-pulldown": { stack: EVOLVE },
+  "evolve-mid-row": { stack: EVOLVE },
+  "one-arm-cable-row": { stack: EVOLVE },
+  "straight-arm-pulldown": { stack: EVOLVE },
+  "rope-pushdown": { stack: EVOLVE },
+  "cable-overhead-ext": { stack: EVOLVE },
+  "rope-crunch": { stack: EVOLVE },
+};
+
+/** Dichtstbijzijnde gewicht dat echt op het blok staat. */
+export function snapToStack(ex: Exercise, w: number): number {
+  if (!ex.stack?.length) return w;
+  return ex.stack.reduce((a, b) => (Math.abs(b - w) < Math.abs(a - w) ? b : a));
+}
+
+/** N stappen op het blok omhoog (+) of omlaag (-) vanaf gewicht w. */
+export function stackStep(ex: Exercise, w: number, n: number): number {
+  if (!ex.stack?.length) return w + n * ex.increment;
+  const i = ex.stack.indexOf(snapToStack(ex, w));
+  return ex.stack[Math.min(ex.stack.length - 1, Math.max(0, i + n))];
+}
+
 function whiteVariant(base: Exercise): Exercise {
   return {
     ...base,
+    stack: undefined,
+    unit: undefined,
     id: `${base.id}-wit`,
     name: `${base.name.replace(/ \(kabel\)$/, "")}, witte kabels`,
     equipment: "Witte Life Fitness, twee kolommen naast elkaar",
@@ -647,16 +708,18 @@ function whiteVariant(base: Exercise): Exercise {
   };
 }
 
-export const EXERCISES: Exercise[] = BASE_EXERCISES.flatMap((e) => {
+export const EXERCISES: Exercise[] = BASE_EXERCISES.map((e) => ({ ...e, ...STACKS[e.id] })).flatMap((e) => {
   if (!WHITE_CABLE_VARIANTS.includes(e.id)) return [e];
   return [{ ...e, alternatives: [`${e.id}-wit`, ...e.alternatives] }, whiteVariant(e)];
 });
 
 const num = (n: number) => String(Math.round(n * 100) / 100).replace(".", ",");
 
-/** "50 kg" of "plaat 5", afhankelijk van hoe de oefening gelogd wordt. */
+/** "50 kg", "45 lbs" of "plaat 5", afhankelijk van hoe de oefening gelogd wordt. */
 export function formatLoad(exerciseId: string, weight: number): string {
-  return EXERCISE_MAP[exerciseId]?.plates ? `plaat ${num(weight)}` : `${num(weight)} kg`;
+  const ex = EXERCISE_MAP[exerciseId];
+  if (ex?.plates) return `plaat ${num(weight)}`;
+  return `${num(weight)} ${ex?.unit ?? "kg"}`;
 }
 
 export const EXERCISE_MAP: Record<string, Exercise> = Object.fromEntries(EXERCISES.map((e) => [e.id, e]));

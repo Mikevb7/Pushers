@@ -61,7 +61,7 @@ function value(s: DatedSet, bw: number) {
 export function volumeOf(sets: DatedSet[]): number {
   return sets.reduce((a, s) => {
     const ex = EXERCISE_MAP[s.exercise_id];
-    if (!ex || ex.plates || ex.load === "lichaamsgewicht") return a;
+    if (!ex || ex.plates || ex.unit || ex.load === "lichaamsgewicht") return a;
     return a + Number(s.weight_kg) * s.reps;
   }, 0);
 }

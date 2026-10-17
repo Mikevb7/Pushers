@@ -111,7 +111,7 @@ export default async function WorkoutPage({ params }: { params: Promise<{ id: st
                       <span className="display flex-1 text-xl font-semibold">
                         {ex?.plates ? <span className="text-sm text-mute">plaat </span> : null}
                         {fmt(Number(s.weight_kg))}
-                        {ex?.plates ? null : <span className="text-sm text-mute"> kg</span>} × {s.reps}
+                        {ex?.plates ? null : <span className="text-sm text-mute"> {ex?.unit ?? "kg"}</span>} × {s.reps}
                       </span>
                       <span className="text-xs text-mute">
                         {s.rir === null ? "" : s.rir === 3 ? "3+ over" : `${s.rir} over`}

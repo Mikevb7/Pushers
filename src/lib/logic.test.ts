@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { EXERCISE_MAP, getExercise } from "./exercises";
+import { EXERCISE_MAP, formatLoad, getExercise } from "./exercises";
 import { PLAN, ROTATION } from "./schedule";
 import { suggest, sessionsFor, type Session } from "./progression";
 import { exerciseProgress, exerciseSeries, findPRs, muscleProgress, overallProgress, type DatedSet } from "./stats";
@@ -48,7 +48,7 @@ describe("progressive overload", () => {
   it("alle sets top van de range -> omhoog", () => {
     const s = suggest(item, ex, [sess([1, 2, 3].map((i) => set({ exercise_id: ex.id, weight_kg: 50, reps: 12, set_number: i })))]);
     expect(s.kind).toBe("increase");
-    expect(s.weight).toBe(55);
+    expect(s.weight).toBe(57); // volgende stap op het Impulse-blok
     expect(s.reps).toBe(8);
   });
   it("RIR 3+ op alle sets -> omhoog, ook zonder top reps", () => {
@@ -69,7 +69,7 @@ describe("progressive overload", () => {
       ]),
     ]);
     expect(s.kind).toBe("increase");
-    expect(s.weight).toBe(35); // chest press in stappen van 5, max +10% maar minstens 1 stap
+    expect(s.weight).toBe(36); // 1 stap op het Impulse-blok boven 29/30
     expect(s.reps).toBeGreaterThanOrEqual(8);
   });
   it("boven de range met één set -> omhoog", () => {
@@ -241,5 +241,34 @@ describe("keuzes per plek in het schema", () => {
     const { optionsFor } = await import("./exercises");
     expect(optionsFor("ab-crunch-machine")).toEqual(expect.arrayContaining(["rope-crunch", "rope-crunch-wit"]));
     expect(optionsFor("rope-pushdown")).toContain("rope-pushdown-wit");
+  });
+});
+
+describe("echte gewichtsblokken", () => {
+  it("Impulse pec deck: van 70 omhoog naar 77, niet naar 75", () => {
+    const ex = getExercise("pec-deck");
+    const item = PLAN.push.items.find((i) => i.exerciseId === "pec-deck")!;
+    const s = suggest(item, ex, [sess([1, 2, 3].map((i) => set({ exercise_id: ex.id, weight_kg: 70, reps: 15, set_number: i })))]);
+    expect(s.kind).toBe("increase");
+    expect([77, 84]).toContain(s.weight);
+  });
+  it("gelogd gewicht dat niet op het blok staat wordt het dichtstbijzijnde echte gewicht", () => {
+    const ex = getExercise("chest-press");
+    const item = PLAN.push.items[1];
+    const s = suggest(item, ex, [sess([1, 2, 3].map((i) => set({ exercise_id: ex.id, weight_kg: 30, reps: 10, set_number: i })))]);
+    expect(s.weight).toBe(29);
+  });
+  it("arm curl machine staat in lbs", () => {
+    expect(getExercise("machine-arm-curl").unit).toBe("lbs");
+    expect(formatLoad("machine-arm-curl", 45)).toBe("45 lbs");
+  });
+  it("witte kabelvarianten hebben geen Evolve-blok", () => {
+    expect(getExercise("rope-pushdown").stack).toBeDefined();
+    expect(getExercise("rope-pushdown-wit").stack).toBeUndefined();
+  });
+  it("normale leg press springt per 7,5", () => {
+    const ex = getExercise("leg-press-horizontal");
+    expect(ex.stack?.slice(0, 4)).toEqual([5, 12.5, 20, 27.5]);
+    expect(ex.stack?.at(-1)).toBe(192.5);
   });
 });

@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { ArrowLeft, Check, ChevronDown, ExternalLink, Pencil, Plus, Repeat, Sparkles, Trash2, Zap } from "lucide-react";
-import { EXERCISE_MAP, optionsFor, videoUrl, type Exercise } from "@/lib/exercises";
+import { EXERCISE_MAP, optionsFor, snapToStack, videoUrl, type Exercise } from "@/lib/exercises";
 import { DAY_LABEL, type GymDay } from "@/lib/schedule";
 import type { PlannedItem } from "@/lib/plan";
 import type { Suggestion } from "@/lib/progression";
@@ -33,10 +33,60 @@ interface Props {
 const unitLabel = (ex: Exercise) =>
   ex.plates
     ? "plaatnummer"
+    : ex.stack
+    ? `${ex.unit ?? "kg"} op het blok`
     : ex.load === "lichaamsgewicht" ? "kg extra" : ex.exclBar ? "kg zonder stang" : ex.load === "dumbbell" ? "kg per dumbbell" : "kg";
 const fmt = (n: number) => String(Math.round(n * 100) / 100).replace(".", ",");
 const parse = (s: string) => Number(s.replace(",", "."));
 const RIR = [0, 1, 2, 3];
+const unitOf = (ex: Exercise) => ex.unit ?? "kg";
+/** Startwaarde voor het gewichtveld: bij een apparaat met vast blok altijd een echt gewicht. */
+const initWeight = (ex: Exercise, w: number | null) => (w === null ? "" : fmt(ex.stack ? snapToStack(ex, w) : w));
+
+/**
+ * Gewicht invullen. Heeft het apparaat een vast blok, dan kies je met − / + of uit de lijst
+ * precies wat er op het blok staat. Anders vrij typen.
+ */
+function WeightField({ ex, value, onChange, className }: { ex: Exercise; value: string; onChange: (v: string) => void; className: string }) {
+  if (!ex.stack?.length) {
+    return (
+      <input
+        inputMode="decimal"
+        value={value}
+        onChange={(e) => onChange(e.target.value.replace(/[^\d.,]/g, ""))}
+        className={className}
+        aria-label={unitLabel(ex)}
+      />
+    );
+  }
+  const stack = ex.stack;
+  const cur = value === "" ? null : snapToStack(ex, parse(value));
+  const idx = cur === null ? -1 : stack.indexOf(cur);
+  const step = (n: number) => onChange(fmt(stack[Math.min(stack.length - 1, Math.max(0, (idx < 0 ? 0 : idx) + n))]));
+  return (
+    <div className="flex items-stretch gap-1">
+      <button type="button" aria-label="Lichter" disabled={idx <= 0} onClick={() => step(-1)} className="w-9 shrink-0 rounded-xl bg-steel text-2xl font-bold text-chalk disabled:opacity-30">
+        −
+      </button>
+      <select
+        value={idx >= 0 ? String(stack[idx]) : ""}
+        onChange={(e) => onChange(fmt(Number(e.target.value)))}
+        aria-label={unitLabel(ex)}
+        className={`${className} min-w-0 appearance-none [text-align-last:center]`}
+      >
+        {idx < 0 && <option value="">kies</option>}
+        {stack.map((v) => (
+          <option key={v} value={String(v)}>
+            {fmt(v)}
+          </option>
+        ))}
+      </select>
+      <button type="button" aria-label="Zwaarder" disabled={idx >= stack.length - 1} onClick={() => step(1)} className="w-9 shrink-0 rounded-xl bg-steel text-2xl font-bold text-chalk disabled:opacity-30">
+        +
+      </button>
+    </div>
+  );
+}
 const SUPERSET_COLOR: Record<string, string> = { A: "var(--color-pin)", B: "#4f8fd6", C: "#e08a2c" };
 
 function Elapsed({ since }: { since: string }) {
@@ -97,7 +147,7 @@ function SetForm({
   defaultReps: number;
   onSave: (v: { weight: number; reps: number; rir: number | null; drop: { weight: number; reps: number } | null }) => Promise<void>;
 }) {
-  const [weight, setWeight] = useState(defaultWeight === null ? (ex.load === "lichaamsgewicht" ? "0" : "") : fmt(defaultWeight));
+  const [weight, setWeight] = useState(defaultWeight === null ? (ex.load === "lichaamsgewicht" ? "0" : "") : initWeight(ex, defaultWeight));
   const [reps, setReps] = useState(String(defaultReps));
   const [rir, setRir] = useState<number | null>(null);
   const [drop, setDrop] = useState(false);
@@ -107,8 +157,8 @@ function SetForm({
   const [err, setErr] = useState<string | null>(null);
 
   useEffect(() => {
-    if (defaultWeight !== null) setWeight(fmt(defaultWeight));
-  }, [defaultWeight]);
+    if (defaultWeight !== null) setWeight(initWeight(ex, defaultWeight));
+  }, [defaultWeight, ex]);
 
   const valid = weight !== "" && !Number.isNaN(parse(weight)) && Number(reps) > 0 && rir !== null;
 
@@ -142,7 +192,7 @@ function SetForm({
           {label ?? `Set ${setNumber}`}
           {prev && (
             <span className="ml-2 rounded bg-steel px-1.5 py-0.5 text-xs text-chalk">
-              vorige keer {ex.plates ? `plaat ${fmt(prev.weight)}` : `${fmt(prev.weight)} kg`} × {prev.reps}
+              vorige keer {ex.plates ? `plaat ${fmt(prev.weight)}` : `${fmt(prev.weight)} ${unitOf(ex)}`} × {prev.reps}
             </span>
           )}
         </p>
@@ -154,7 +204,7 @@ function SetForm({
       </div>
       <div className="grid grid-cols-[1fr_auto_1fr] items-end gap-2">
         <label className="block">
-          <input inputMode="decimal" value={weight} onChange={(e) => setWeight(e.target.value.replace(/[^\d.,]/g, ""))} className={box} aria-label={unitLabel(ex)} />
+          <WeightField ex={ex} value={weight} onChange={setWeight} className={box} />
           <span className="mt-1 block text-center text-xs text-mute">{unitLabel(ex)}</span>
         </label>
         <span className="display pb-7 text-2xl text-mute">×</span>
@@ -210,7 +260,7 @@ function SetForm({
 
 function LoggedSet({ s, ex, onDelete, onUpdate }: { s: SetRow; ex: Exercise; onDelete: (id: string) => void; onUpdate: (row: SetRow) => Promise<boolean> }) {
   const [editing, setEditing] = useState(false);
-  const [weight, setWeight] = useState(fmt(Number(s.weight_kg)));
+  const [weight, setWeight] = useState(initWeight(ex, Number(s.weight_kg)));
   const [reps, setReps] = useState(String(s.reps));
   const [rir, setRir] = useState<number | null>(s.rir);
   const [busy, setBusy] = useState(false);
@@ -222,7 +272,7 @@ function LoggedSet({ s, ex, onDelete, onUpdate }: { s: SetRow; ex: Exercise; onD
       <div className="space-y-2 rounded-2xl border border-pin bg-pin-dim/60 p-3">
         <p className="text-sm text-mute">Set {s.set_number} aanpassen</p>
         <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
-          <input inputMode="decimal" value={weight} onChange={(e) => setWeight(e.target.value.replace(/[^\d.,]/g, ""))} className={box} aria-label={unitLabel(ex)} />
+          <WeightField ex={ex} value={weight} onChange={setWeight} className={box} />
           <span className="text-mute">×</span>
           <input inputMode="numeric" value={reps} onChange={(e) => setReps(e.target.value.replace(/\D/g, ""))} className={box} aria-label="reps" />
         </div>
@@ -268,7 +318,7 @@ function LoggedSet({ s, ex, onDelete, onUpdate }: { s: SetRow; ex: Exercise; onD
       <span className="w-10 text-sm text-mute">Set {s.set_number}</span>
       <span className="display flex-1 text-2xl font-semibold">
         {ex.plates ? <span className="text-base text-mute">plaat </span> : null}
-        {fmt(Number(s.weight_kg))} {ex.plates ? null : <span className="text-base text-mute">kg</span>} × {s.reps}
+        {fmt(Number(s.weight_kg))} {ex.plates ? null : <span className="text-base text-mute">{unitOf(ex)}</span>} × {s.reps}
       </span>
       <span className="text-xs text-mute">
         {pendingSave ? "opslaan…" : s.rir === null ? "" : s.rir === 3 ? "3+ over" : `${s.rir} over`}
@@ -294,7 +344,11 @@ function ExerciseBlock({
   formLabel,
   formHint,
   scrollSignal = 0,
+  extra = 0,
+  onExtra,
 }: {
+  extra?: number;
+  onExtra: () => void;
   inGroup?: boolean;
   formLabel?: string;
   formHint?: string;
@@ -312,7 +366,6 @@ function ExerciseBlock({
 }) {
   const ex = EXERCISE_MAP[exerciseId];
   const [open, setOpen] = useState(false);
-  const [extra, setExtra] = useState(0);
   const [picking, setPicking] = useState(false);
   const target = Math.max(item.sets + extra, sets.length);
   const done = sets.length >= item.sets;
@@ -428,7 +481,7 @@ function ExerciseBlock({
           />
         )}
         {sets.length >= target && (
-          <button onClick={() => setExtra((e) => e + 1)} className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-line py-2 text-sm text-mute">
+          <button onClick={onExtra} className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-line py-2 text-sm text-mute">
             <Plus size={14} /> Extra set
           </button>
         )}
@@ -454,6 +507,7 @@ export function TrainingSession({ workoutId, day, startedAt, items, notes, info,
   const [split, setSplit] = useState<Record<string, boolean>>({}); // superset toch los doen
   const [goNext, setGoNext] = useState<string | null>(null); // "direct door"-melding
   const [scrollSignal, setScrollSignal] = useState(0);
+  const [extras, setExtras] = useState<Record<number, number>>({}); // extra sets per oefening
   const [note, setNote] = useState("");
   const [pending, start] = useTransition();
 
@@ -488,7 +542,8 @@ export function TrainingSession({ workoutId, day, startedAt, items, notes, info,
   const firstOpenRaw = items.findIndex((it, i) => countIn(sets, i) < it.sets);
   const firstGroup = firstOpenRaw >= 0 ? groupOf(firstOpenRaw) : null;
   const firstOpen = firstGroup ? (nextInGroup(firstGroup.idx, sets) ?? firstOpenRaw) : firstOpenRaw;
-  const chosenOpen = chosen !== null && countIn(sets, chosen) < items[chosen].sets;
+  // Een oefening is "open" zolang de geplande sets plus eventuele extra sets nog niet gelogd zijn.
+  const chosenOpen = chosen !== null && countIn(sets, chosen) < items[chosen].sets + (extras[chosen] ?? 0);
   const activeIndex = chosen !== null && chosenOpen ? chosen : firstOpen;
 
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -633,6 +688,11 @@ export function TrainingSession({ workoutId, day, startedAt, items, notes, info,
               formLabel={formLabel}
               formHint={formHint}
               scrollSignal={scrollSignal}
+              extra={extras[i] ?? 0}
+              onExtra={() => {
+                setExtras((x) => ({ ...x, [i]: (x[i] ?? 0) + 1 }));
+                setChosen(i);
+              }}
             />
           );
         };

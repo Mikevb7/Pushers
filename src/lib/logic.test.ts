@@ -266,8 +266,9 @@ describe("echte gewichtsblokken", () => {
     expect(getExercise("rope-pushdown").stack).toBeDefined();
     expect(getExercise("rope-pushdown-wit").stack).toBeUndefined();
   });
-  it("normale leg press springt per 7,5", () => {
-    const ex = getExercise("leg-press-horizontal");
+  it("de leg press uit het schema is de losse machine (stappen van 7,5); de Impulse is het alternatief", () => {
+    expect(getExercise("leg-press-horizontal").stack?.[0]).toBe(11);
+    const ex = getExercise("leg-press");
     expect(ex.stack?.slice(0, 4)).toEqual([5, 12.5, 20, 27.5]);
     expect(ex.stack?.at(-1)).toBe(192.5);
   });

@@ -66,16 +66,17 @@ export function exerciseProgress(series: SessionPoint[], period: Period, today =
     const recent = Math.max(...s.slice(1).slice(-2).map((p) => p.e1rm));
     return base > 0 ? ((recent - base) / base) * 100 : null;
   }
+  // Overal dezelfde regel: een duidelijk te lichte allereerste keer telt niet mee.
+  const all = withoutProbe(series);
   const from = addDays(today, period === "week" ? -6 : -29);
-  const inside = series.filter((p) => p.date >= from);
-  const before = series.filter((p) => p.date < from);
+  const inside = all.filter((p) => p.date >= from);
+  const before = all.filter((p) => p.date < from);
   if (!inside.length) return null;
   if (!before.length) {
     // Pas in deze periode begonnen: vergelijk met je eerste training in de periode.
-    const s = withoutProbe(inside);
-    if (s.length < 2) return null;
-    const base = s[0].e1rm;
-    const now = Math.max(...s.slice(1).map((p) => p.e1rm));
+    if (inside.length < 2) return null;
+    const base = inside[0].e1rm;
+    const now = Math.max(...inside.slice(1).map((p) => p.e1rm));
     return base > 0 ? ((now - base) / base) * 100 : null;
   }
   const base = Math.max(...before.map((p) => p.e1rm));

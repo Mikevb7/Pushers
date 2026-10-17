@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { loadProfiles, loadSets, requireMe } from "@/lib/data";
-import { dayKey } from "@/lib/dates";
+import { addDays, dayKey, formatDay } from "@/lib/dates";
 import { EXERCISE_MAP, MUSCLE_LABEL, formatLoad } from "@/lib/exercises";
 import {
   exerciseIdsIn,
@@ -47,6 +47,13 @@ export default async function ProgressPage({ searchParams }: { searchParams: Pro
     })
     .sort((a, b) => b.last.localeCompare(a.last));
   const selected = exercises.find((e) => e.id === sp.oefening);
+  const counted = exercises.filter((e) => e.pct !== null).length;
+  const firstDay = sets.length ? sets.map((x) => dayKey(x.date)).sort()[0] : null;
+  const fromDay = addDays(today, period === "week" ? -6 : -29);
+  const startedInPeriod = period !== "start" && firstDay !== null && firstDay >= fromDay;
+  // Alleen crewleden die echt trainen in de lijst (lege of dubbele accounts niet).
+  const { data: activeRows } = await supabase.from("workouts").select("user_id").not("completed_at", "is", null);
+  const active = new Set(((activeRows ?? []) as { user_id: string }[]).map((r) => r.user_id));
   const volume = weeklySets(sets, today);
 
   const link = (patch: Record<string, string | undefined>) => {
@@ -65,7 +72,7 @@ export default async function ProgressPage({ searchParams }: { searchParams: Pro
       </header>
 
       <nav className="-mx-4 flex gap-1.5 overflow-x-auto px-4" aria-label="Van wie">
-        {profiles.map((p) => (
+        {profiles.filter((p) => p.id === user.id || p.id === who.id || active.has(p.id)).map((p) => (
           <Link
             key={p.id}
             href={link({ user: p.id === user.id ? undefined : p.id, oefening: undefined })}
@@ -99,13 +106,23 @@ export default async function ProgressPage({ searchParams }: { searchParams: Pro
             ? period === "start"
               ? "Doe elke oefening minstens twee keer om dit te zien."
               : `Nog niet genoeg trainingen om deze ${period} te vergelijken.`
-            : `sterker ${period === "week" ? "dan vóór deze week" : period === "maand" ? "dan vóór deze maand" : "dan bij de eerste training"}.`}
+            : startedInPeriod || period === "start"
+              ? `sterker dan bij je eerste keer, gemiddeld over ${counted} ${counted === 1 ? "oefening" : "oefeningen"}.`
+              : `sterker dan je beste vóór deze ${period}, gemiddeld over ${counted} ${counted === 1 ? "oefening" : "oefeningen"}.`}
         </p>
+        {startedInPeriod && overall !== null && (
+          <p className="mt-2 rounded-lg bg-steel px-3 py-2 text-sm text-mute">
+            Je traint pas sinds {formatDay(firstDay!)}, dus Week, Maand en Sinds start vergelijken bijna hetzelfde: je eerste keer met nu. Na een paar weken gaan ze echt verschillen.
+          </p>
+        )}
       </section>
 
       {muscles.length > 0 && (
         <section>
-          <h2 className="mb-3 font-semibold">Per spiergroep</h2>
+          <h2 className="font-semibold">Per spiergroep</h2>
+          <p className="mb-3 text-xs text-mute">
+            Gemeten met je geschatte max: gewicht én reps samen. 50 kg × 12 telt dus zwaarder dan 50 kg × 8.
+          </p>
           <ul className="space-y-2">
             {muscles.map((m) => (
               <li key={m.muscle} className="grid grid-cols-[6.5rem_1fr_4rem] items-center gap-2 text-sm">

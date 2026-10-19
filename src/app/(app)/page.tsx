@@ -2,13 +2,15 @@ import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight, Check, ChevronDown, ChevronRight, MessageCircle, Repeat, Sparkles } from "lucide-react";
 import { closeStaleWorkouts, loadActiveAdvice, loadHabits, loadProfiles, loadSets, loadSocial, loadWorkouts, requireMe } from "@/lib/data";
-import { activeNow, doneSentence, joinNames, noticesFor, recentDone } from "@/lib/activity";
-import { DAY_COLOR } from "@/lib/history";
+import { activeNow, daypart, joinNames, noticesFor } from "@/lib/activity";
+import { summarize } from "@/lib/history";
+import { reactionState } from "@/lib/social";
+import { WorkoutCard } from "@/components/WorkoutCard";
 import { AutoRefresh } from "@/components/AutoRefresh";
 import { dayKey, timeAgo, WEEKDAY_SHORT } from "@/lib/dates";
 import { DAY_LABEL, PLAN, GYM_SESSIONS_PER_WEEK, ROTATION } from "@/lib/schedule";
 import { habitStreak, nextGymDay, trainingAdvice, weekStatus } from "@/lib/rotation";
-import { formatPct, overallProgress } from "@/lib/stats";
+import { findPRs, formatPct, overallProgress } from "@/lib/stats";
 import { planFor } from "@/lib/plan";
 import { startWorkout } from "@/app/actions";
 import { HabitQuick } from "@/components/HabitQuick";
@@ -31,7 +33,7 @@ export default async function Home() {
     loadHabits(supabase, user.id, 400),
     loadSets(supabase, user.id),
     loadActiveAdvice(supabase, user.id),
-    loadWorkouts(supabase, undefined, 2),
+    loadWorkouts(supabase, undefined, 7),
     loadProfiles(supabase),
   ]);
 
@@ -41,7 +43,19 @@ export default async function Home() {
   const busySets = busy.length
     ? (((await supabase.from("sets").select("workout_id").in("workout_id", busy.map((w) => w.id))).data ?? []) as { workout_id: string }[])
     : [];
-  const doneGroups = recentDone(crewWorkouts, user.id).slice(0, 4);
+  // Crew deze week: afgeronde trainingen van de anderen, nieuwste eerst.
+  const crewWeek = crewWorkouts
+    .filter((w) => w.completed_at && w.user_id !== user.id && !w.quick_check)
+    .sort((a, b) => b.completed_at!.localeCompare(a.completed_at!))
+    .slice(0, 6);
+  const crewIds = [...new Set(crewWeek.map((w) => w.user_id))];
+  const crewSets = crewIds.length
+    ? (await Promise.all(crewIds.map((id) => loadSets(supabase, id)))).flat()
+    : [];
+  const crewSocial = await loadSocial(supabase, crewWeek.map((w) => w.id));
+  const crewWeekShown = crewWeek.filter((w) => w.day_type === "cardio" || crewSets.some((x) => x.workout_id === w.id));
+  const bwOf = (id: string) => profiles.find((p) => p.id === id)?.bodyweight_kg ?? 75;
+  const crewPrs = findPRs(crewSets, Object.fromEntries(profiles.map((p) => [p.id, p.bodyweight_kg])));
   const since = new Date(Date.now() - 3 * 24 * 3600 * 1000).toISOString();
   const myRecent = workouts.filter((w) => w.completed_at && w.completed_at > new Date(Date.now() - 21 * 24 * 3600 * 1000).toISOString());
   const social = await loadSocial(supabase, myRecent.map((w) => w.id));
@@ -109,7 +123,7 @@ export default async function Home() {
         </div>
       </section>
 
-      {(busy.length > 0 || doneGroups.length > 0 || notices.length > 0) && (
+      {(busy.length > 0 || notices.length > 0) && (
         <section className="card divide-y divide-line overflow-hidden">
           {busy.map((w) => {
             const mins = Math.max(1, Math.round((Date.now() - new Date(w.started_at).getTime()) / 60000));
@@ -153,18 +167,39 @@ export default async function Home() {
               <ChevronRight size={16} className="text-mute" aria-hidden />
             </Link>
           ))}
-          {doneGroups.map((g) => (
-            <Link
-              key={g.key}
-              href={g.userIds.filter((u) => u !== user.id).length === 1 && !g.includesMe ? `/training/${g.workoutIds[0]}/klaar` : "/crew"}
-              className="flex items-center gap-3 px-4 py-3"
-            >
-              <span className="size-3 shrink-0 rounded-full" style={{ background: DAY_COLOR[g.dayType] }} aria-hidden />
-              <span className="flex-1 text-sm">{doneSentence(g, nameOf, user.id)}</span>
-              <ChevronRight size={16} className="text-mute" aria-hidden />
-            </Link>
-          ))}
           {busy.length > 0 && <AutoRefresh seconds={60} />}
+        </section>
+      )}
+
+      {crewWeekShown.length > 0 && (
+        <section>
+          <div className="mb-3 flex items-baseline justify-between">
+            <h2 className="font-semibold">Crew deze week</h2>
+            <Link href="/crew" className="text-sm text-mute">
+              Alles
+            </Link>
+          </div>
+          <ul className="space-y-2.5">
+            {crewWeekShown.map((w) => {
+              const cs = crewSocial.comments.filter((c) => c.workout_id === w.id);
+              return (
+                <li key={w.id}>
+                  <WorkoutCard
+                    w={w}
+                    summary={summarize(w, crewSets.filter((x) => x.user_id === w.user_id), bwOf(w.user_id))}
+                    who={{ id: w.user_id, name: nameOf(w.user_id), isMe: false }}
+                    prs={crewPrs.filter((p) => p.workoutId === w.id)}
+                    reactions={reactionState(crewSocial.reactions, w.id, user.id)}
+                    comments={cs.length}
+                    latestComments={cs.slice(-2).map((c) => ({ id: c.id, name: nameOf(c.user_id), body: c.body }))}
+                    maxExercises={2}
+                    whenLabel={daypart(w.started_at) || undefined}
+                    reactedBy={joinNames([...new Set(crewSocial.reactions.filter((r) => r.workout_id === w.id).map((r) => nameOf(r.user_id)))]) || undefined}
+                  />
+                </li>
+              );
+            })}
+          </ul>
         </section>
       )}
 

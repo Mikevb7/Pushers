@@ -71,6 +71,11 @@ export async function loadSocial(supabase: Supa, workoutIds: string[]) {
   return { reactions: (r.data ?? []) as WorkoutReaction[], comments: (c.data ?? []) as WorkoutComment[] };
 }
 
+export async function loadWeights(supabase: Supa, userId: string): Promise<{ day: string; kg: number }[]> {
+  const { data } = await supabase.from("body_weights").select("day, weight_kg").eq("user_id", userId).order("day");
+  return ((data ?? []) as { day: string; weight_kg: number }[]).map((r) => ({ day: r.day, kg: Number(r.weight_kg) }));
+}
+
 export async function loadActiveAdvice(supabase: Supa, userId: string): Promise<CoachAdvice[]> {
   const { data } = await supabase
     .from("coach_advice")

@@ -1,5 +1,7 @@
 import Link from "next/link";
-import { loadProfiles, loadSets, requireMe } from "@/lib/data";
+import { loadProfiles, loadSets, loadWeights, requireMe } from "@/lib/data";
+import { RANGES, type RangeId } from "@/lib/weight";
+import { BodyView } from "@/components/BodyView";
 import { addDays, dayKey, formatDay } from "@/lib/dates";
 import { EXERCISE_MAP, MUSCLE_LABEL, formatLoad } from "@/lib/exercises";
 import {
@@ -29,7 +31,9 @@ export default async function ProgressPage({ searchParams }: { searchParams: Pro
   const profiles = await loadProfiles(supabase);
   const who = profiles.find((p) => p.id === sp.user) ?? profiles.find((p) => p.id === user.id)!;
   const period = (PERIODS.find((p) => p.id === sp.periode)?.id ?? "maand") as Period;
-  const sets = await loadSets(supabase, who.id);
+  const view = sp.weergave === "lichaam" ? "lichaam" : "kracht";
+  const range = (RANGES.find((r) => r.id === sp.bereik)?.id ?? "3m") as RangeId;
+  const [sets, weights] = await Promise.all([loadSets(supabase, who.id), loadWeights(supabase, who.id)]);
   const today = dayKey();
   const bw = who.bodyweight_kg;
 
@@ -58,7 +62,7 @@ export default async function ProgressPage({ searchParams }: { searchParams: Pro
 
   const link = (patch: Record<string, string | undefined>) => {
     const q = new URLSearchParams();
-    const merged = { user: who.id === user.id ? undefined : who.id, periode: period, oefening: sp.oefening, ...patch };
+    const merged = { user: who.id === user.id ? undefined : who.id, weergave: sp.weergave, periode: period, bereik: sp.bereik, oefening: sp.oefening, ...patch };
     Object.entries(merged).forEach(([k, v]) => v && q.set(k, v));
     return `/progressie?${q}`;
   };
@@ -83,6 +87,29 @@ export default async function ProgressPage({ searchParams }: { searchParams: Pro
         ))}
       </nav>
 
+      <div className="grid grid-cols-2 rounded-full bg-steel p-1">
+        {(["kracht", "lichaam"] as const).map((v) => (
+          <Link
+            key={v}
+            href={link({ weergave: v === "kracht" ? undefined : v, oefening: undefined })}
+            className={`rounded-full py-2 text-center text-sm font-semibold ${v === view ? "bg-chalk text-floor" : "text-mute"}`}
+          >
+            {v === "kracht" ? "Kracht" : "Lichaam"}
+          </Link>
+        ))}
+      </div>
+
+      {view === "lichaam" ? (
+        <BodyView
+          weights={weights}
+          mine={mine}
+          name={who.display_name}
+          today={today}
+          range={range}
+          hrefForRange={(r) => link({ bereik: r === "3m" ? undefined : r })}
+        />
+      ) : (
+        <>
       <div className="grid grid-cols-3 rounded-lg bg-steel p-1">
         {PERIODS.map((p) => (
           <Link key={p.id} href={link({ periode: p.id })} className={`rounded-md py-2 text-center text-sm font-semibold ${p.id === period ? "bg-steel-2" : "text-mute"}`}>
@@ -207,6 +234,8 @@ export default async function ProgressPage({ searchParams }: { searchParams: Pro
               ))}
           </ul>
         </section>
+      )}
+        </>
       )}
     </div>
   );

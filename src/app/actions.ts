@@ -210,3 +210,30 @@ export async function deleteComment(id: string) {
   await supabase.from("workout_comments").delete().eq("id", id).eq("user_id", user.id);
   refresh();
 }
+
+// ---------- Lichaamsgewicht ----------
+
+async function syncBodyweight(supabase: Awaited<ReturnType<typeof requireUser>>["supabase"], userId: string) {
+  const { data } = await supabase.from("body_weights").select("weight_kg").eq("user_id", userId).order("day", { ascending: false }).limit(1);
+  const latest = data?.[0]?.weight_kg;
+  if (latest) await supabase.from("profiles").update({ bodyweight_kg: Number(latest) }).eq("id", userId);
+}
+
+export async function logWeight(formData: FormData) {
+  const kg = Number(String(formData.get("kg") ?? "").replace(",", "."));
+  if (!Number.isFinite(kg) || kg < 30 || kg > 250) return;
+  const today = dayKey();
+  const raw = String(formData.get("day") ?? today);
+  const day = /^\d{4}-\d{2}-\d{2}$/.test(raw) && raw <= today ? raw : today;
+  const { supabase, user } = await requireUser();
+  await supabase.from("body_weights").upsert({ user_id: user.id, day, weight_kg: Math.round(kg * 10) / 10 }, { onConflict: "user_id,day" });
+  await syncBodyweight(supabase, user.id);
+  refresh();
+}
+
+export async function deleteWeight(day: string) {
+  const { supabase, user } = await requireUser();
+  await supabase.from("body_weights").delete().eq("user_id", user.id).eq("day", day);
+  await syncBodyweight(supabase, user.id);
+  refresh();
+}

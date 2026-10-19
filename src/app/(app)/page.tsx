@@ -1,13 +1,13 @@
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowRight, Check, ChevronDown, ChevronRight, MessageCircle, Repeat, Sparkles } from "lucide-react";
-import { closeStaleWorkouts, loadActiveAdvice, loadHabits, loadProfiles, loadSets, loadSocial, loadWorkouts, requireMe } from "@/lib/data";
+import { ArrowRight, Check, ChevronDown, ChevronRight, MessageCircle, Plus, Repeat, Scale, Sparkles } from "lucide-react";
+import { closeStaleWorkouts, loadActiveAdvice, loadHabits, loadProfiles, loadSets, loadSocial, loadWeights, loadWorkouts, requireMe } from "@/lib/data";
 import { activeNow, daypart, joinNames, noticesFor } from "@/lib/activity";
 import { summarize } from "@/lib/history";
 import { reactionState } from "@/lib/social";
 import { WorkoutCard } from "@/components/WorkoutCard";
 import { AutoRefresh } from "@/components/AutoRefresh";
-import { dayKey, timeAgo, WEEKDAY_SHORT } from "@/lib/dates";
+import { dayKey, daysBetween, timeAgo, WEEKDAY_SHORT } from "@/lib/dates";
 import { DAY_LABEL, PLAN, GYM_SESSIONS_PER_WEEK, ROTATION } from "@/lib/schedule";
 import { habitStreak, nextGymDay, trainingAdvice, weekStatus } from "@/lib/rotation";
 import { findPRs, formatPct, overallProgress } from "@/lib/stats";
@@ -25,17 +25,24 @@ const HERO_PHOTO = {
   upper: "/equipment/bench-press.webp",
 } as const;
 
+function weighedAgo(day: string, today: string) {
+  const d = daysBetween(day, today);
+  return d <= 0 ? "vandaag" : d === 1 ? "gisteren" : `${d} dagen geleden`;
+}
+
 export default async function Home() {
   const { supabase, user, profile } = await requireMe();
   await closeStaleWorkouts(supabase, user.id);
-  const [workouts, habits, sets, advice, crewWorkouts, profiles] = await Promise.all([
+  const [workouts, habits, sets, advice, crewWorkouts, profiles, myWeights] = await Promise.all([
     loadWorkouts(supabase, user.id),
     loadHabits(supabase, user.id, 400),
     loadSets(supabase, user.id),
     loadActiveAdvice(supabase, user.id),
     loadWorkouts(supabase, undefined, 7),
     loadProfiles(supabase),
+    loadWeights(supabase, user.id),
   ]);
+  const lastWeight = myWeights.at(-1) ?? null;
 
   // Crew: wie is nu bezig, wie heeft vandaag/gisteren getraind, reacties op jouw trainingen.
   const nameOf = (id: string) => (id === user.id ? "Jij" : (profiles.find((p) => p.id === id)?.display_name ?? "Iemand"));
@@ -279,6 +286,20 @@ export default async function Home() {
           creatineStreak={habitStreak(habits, (h) => h.creatine, today)}
         />
       </section>
+
+      <Link href="/progressie?weergave=lichaam" className="card flex items-center gap-3 px-4 py-3">
+        <Scale size={18} className="text-pin-deep" aria-hidden />
+        <span className="flex-1">
+          <span className="font-semibold">Gewicht</span>
+          <span className="block text-xs text-mute">
+            {lastWeight ? `Laatst gewogen ${weighedAgo(lastWeight.day, today)}` : "Nog niet gelogd, tik om je eerste meting in te vullen"}
+          </span>
+        </span>
+        {lastWeight && <span className="display text-2xl font-bold">{String(lastWeight.kg).replace(".", ",")} kg</span>}
+        <span className="grid size-8 place-items-center rounded-full bg-pin text-chalk" aria-label="Gewicht loggen">
+          <Plus size={16} />
+        </span>
+      </Link>
 
       <Link href="/progressie" className="flex items-center justify-between card p-4">
         <div>

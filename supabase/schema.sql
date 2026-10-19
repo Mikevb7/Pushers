@@ -197,3 +197,18 @@ create policy "eigen comments plaatsen" on public.workout_comments for insert to
 drop policy if exists "eigen comments verwijderen" on public.workout_comments;
 create policy "eigen comments verwijderen" on public.workout_comments for delete to authenticated
   using (user_id = auth.uid());
+
+-- ---------- Lichaamsgewicht ----------
+create table if not exists public.body_weights (
+  user_id uuid not null default auth.uid() references public.profiles (id) on delete cascade,
+  day date not null,
+  weight_kg numeric(5,1) not null check (weight_kg between 30 and 250),
+  created_at timestamptz not null default now(),
+  primary key (user_id, day)
+);
+alter table public.body_weights enable row level security;
+drop policy if exists "crew leest gewicht" on public.body_weights;
+create policy "crew leest gewicht" on public.body_weights for select to authenticated using (true);
+drop policy if exists "eigen gewicht" on public.body_weights;
+create policy "eigen gewicht" on public.body_weights for all to authenticated
+  using (user_id = auth.uid()) with check (user_id = auth.uid());

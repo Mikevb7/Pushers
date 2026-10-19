@@ -1,6 +1,9 @@
 import Link from "next/link";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { dayKey, WEEKDAY_SHORT } from "@/lib/dates";
+import { dayKey, TZ, WEEKDAY_SHORT } from "@/lib/dates";
+import { CalendarGrid } from "./CalendarGrid";
+
+const timeFmt = new Intl.DateTimeFormat("nl-NL", { timeZone: TZ, hour: "2-digit", minute: "2-digit" });
 import { DAY_COLOR, monthGrid, monthLabel, shiftMonth, workoutsByDay } from "@/lib/history";
 import { DAY_LABEL } from "@/lib/schedule";
 import type { Workout } from "@/lib/types";
@@ -53,32 +56,23 @@ export function MonthCalendar({
             {d}
           </span>
         ))}
-        {grid.map(({ key, inMonth }) => {
-          const ws = byDay.get(key) ?? [];
-          const gym = ws.find((w) => w.day_type !== "cardio");
-          const isToday = key === today;
-          const cell = (
-            <div
-              className={`flex h-12 flex-col items-center justify-center gap-1 rounded-lg text-sm ${
-                inMonth ? "" : "opacity-30"
-              } ${isToday ? "ring-2 ring-chalk/70" : ""} ${ws.length ? "bg-floor" : ""}`}
-            >
-              <span className={ws.length ? "font-semibold" : "text-mute"}>{Number(key.slice(8))}</span>
-              <span className="flex h-1.5 gap-0.5">
-                {ws.map((w) => (
-                  <span key={w.id} className="h-1.5 w-3 rounded-full" style={{ background: DAY_COLOR[w.day_type] }} />
-                ))}
-              </span>
-            </div>
-          );
-          return gym ? (
-            <Link key={key} href={`/training/${gym.id}/klaar`} aria-label={`${DAY_LABEL[gym.day_type]} op ${key}`}>
-              {cell}
-            </Link>
-          ) : (
-            <div key={key}>{cell}</div>
-          );
-        })}
+        <CalendarGrid
+          days={grid.map(({ key, inMonth }) => ({
+            key,
+            inMonth,
+            isToday: key === today,
+            workouts: (byDay.get(key) ?? [])
+              .slice()
+              .sort((a, b) => a.started_at.localeCompare(b.started_at))
+              .map((w) => ({
+                id: w.id,
+                color: DAY_COLOR[w.day_type],
+                label: w.day_type === "cardio" ? `Cardio${w.cardio_description ? `: ${w.cardio_description}` : ""}` : DAY_LABEL[w.day_type],
+                time: timeFmt.format(new Date(w.started_at)),
+                cardio: w.day_type === "cardio",
+              })),
+          }))}
+        />
       </div>
 
       {used.size > 0 && (

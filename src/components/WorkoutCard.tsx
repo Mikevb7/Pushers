@@ -99,7 +99,7 @@ export function WorkoutCard({
               <span>{summary.setCount} sets</span>
               {summary.volume > 0 && <span>{fmtKg(summary.volume)} volume</span>}
             </p>
-            {summary.exercises.length > 0 && (
+            {summary.exercises.length > 0 && maxExercises > 0 && (
               <ul className="mt-2 space-y-1 text-sm">
                 {summary.exercises.slice(0, maxExercises).map((e) => (
                   <li key={e.exerciseId} className="flex items-center gap-2">

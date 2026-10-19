@@ -192,7 +192,7 @@ export default async function Home() {
                     reactions={reactionState(crewSocial.reactions, w.id, user.id)}
                     comments={cs.length}
                     latestComments={cs.slice(-2).map((c) => ({ id: c.id, name: nameOf(c.user_id), body: c.body }))}
-                    maxExercises={2}
+                    maxExercises={0}
                     whenLabel={daypart(w.started_at) || undefined}
                     reactedBy={joinNames([...new Set(crewSocial.reactions.filter((r) => r.workout_id === w.id).map((r) => nameOf(r.user_id)))]) || undefined}
                   />

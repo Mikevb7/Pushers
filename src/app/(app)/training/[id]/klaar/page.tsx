@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, Clock, Pencil, Trash2, Trophy } from "lucide-react";
+import { ArrowLeft, Pencil, Trash2, TrendingDown, TrendingUp, Trophy } from "lucide-react";
 import { loadProfiles, loadSets, loadSocial, requireUser } from "@/lib/data";
 import { dayKey, formatDay, timeAgo } from "@/lib/dates";
 import { EXERCISE_MAP, formatLoad } from "@/lib/exercises";
@@ -11,12 +11,14 @@ import { reactionState } from "@/lib/social";
 import { themeFor } from "@/lib/themes";
 import type { Workout } from "@/lib/types";
 import { addComment, deleteComment } from "@/app/actions";
+import { CompletionRing } from "@/components/CompletionRing";
 import { CrewName } from "@/components/CrewName";
 import { Reactions } from "@/components/Reactions";
 import { SubmitButton } from "@/components/SubmitButton";
 import { DeltaBadge, fmtKg } from "@/components/WorkoutCard";
 
 const fmt = (n: number) => String(Math.round(n * 100) / 100).replace(".", ",");
+const pctDiff = (a: number, b: number) => Math.round((a / b - 1) * 100);
 
 export default async function WorkoutPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -34,44 +36,129 @@ export default async function WorkoutPage({ params }: { params: Promise<{ id: st
   const nameOf = (uid: string) => profiles.find((p) => p.id === uid)?.display_name ?? "Iemand";
   const theme = themeFor(workout.user_id);
 
+  // Vorige training van hetzelfde type, om mee te vergelijken.
+  const { data: prevRows } = await supabase
+    .from("workouts")
+    .select("*")
+    .eq("user_id", workout.user_id)
+    .eq("day_type", workout.day_type)
+    .eq("quick_check", false)
+    .not("completed_at", "is", null)
+    .lt("started_at", workout.started_at)
+    .order("started_at", { ascending: false })
+    .limit(1);
+  const prev = (prevRows?.[0] as Workout | undefined) ?? null;
+  const prevSummary = prev ? summarize(prev, sets, bw) : null;
+  const ups = summary.exercises.filter((e) => (e.deltaPct ?? 0) >= 0.5).sort((a, b) => b.deltaPct! - a.deltaPct!);
+  const downs = summary.exercises.filter((e) => (e.deltaPct ?? 0) <= -0.5).sort((a, b) => a.deltaPct! - b.deltaPct!);
+
   return (
     <div data-theme={theme ?? undefined} className={`space-y-5 pt-2 ${theme && !mine ? "-mx-4 rounded-3xl px-4 pb-4" : ""}`}>
       <Link href={mine ? "/logboek" : `/crew/${workout.user_id}`} className="inline-flex items-center gap-1.5 text-sm text-mute">
         <ArrowLeft size={16} /> {mine ? "Logboek" : nameOf(workout.user_id)}
       </Link>
 
-      <header>
-        <p className="text-mute">
-          {justDone ? (
-            "Klaar met"
-          ) : (
-            <>
-              {mine ? "Jouw training" : <CrewName userId={workout.user_id} name={nameOf(workout.user_id)} />} · {formatDay(dayKey(workout.started_at))}
-            </>
+      <header className="relative overflow-hidden rounded-[1.75rem] bg-night p-5 text-white">
+        <div className="absolute inset-0 opacity-90" style={{ background: `radial-gradient(circle at 85% 15%, ${DAY_COLOR[workout.day_type]}66, transparent 55%)` }} aria-hidden />
+        <div className="absolute inset-x-0 top-0 h-1.5" style={{ background: DAY_COLOR[workout.day_type] }} aria-hidden />
+        <div className="relative flex items-start gap-4">
+          <div className="min-w-0 flex-1">
+            <p className="text-sm text-white/70">
+              {justDone ? (
+                "Training afgerond 💪"
+              ) : (
+                <>
+                  {mine ? "Jouw training" : <CrewName userId={workout.user_id} name={nameOf(workout.user_id)} />} · {formatDay(dayKey(workout.started_at))}
+                </>
+              )}
+            </p>
+            <h1 className="display mt-1 text-[4.75rem] font-bold uppercase leading-[0.85]">{DAY_LABEL[workout.day_type]}</h1>
+            <p className="mt-2 text-sm text-white/75">
+              {summary.minutes !== null ? `${summary.minutes} min` : ""}
+              {workout.completed_at ? ` · afgerond ${timeAgo(workout.completed_at)}` : " · nog bezig"}
+            </p>
+          </div>
+          {summary.completion && (
+            <div className="text-center">
+              <span className="rounded-full bg-white/95 p-1.5 inline-grid text-chalk">
+                <CompletionRing pct={summary.completion.pct} size={76} stroke={7} />
+              </span>
+              <p className="mt-1 text-xs text-white/75">
+                {summary.completion.done} van {summary.completion.planned} sets
+              </p>
+            </div>
           )}
-        </p>
-        <h1 className="display flex items-center gap-3 text-[5.5rem] font-bold uppercase leading-[0.9]">
-          {DAY_LABEL[workout.day_type]}
-          <span className="size-4 rounded-full" style={{ background: DAY_COLOR[workout.day_type] }} aria-hidden />
-        </h1>
-        {workout.completed_at && <p className="mt-1 text-sm text-mute">Afgerond {timeAgo(workout.completed_at)}</p>}
+        </div>
       </header>
 
       <dl className="grid grid-cols-3 gap-2">
         {[
-          ["Tijd", summary.minutes !== null ? `${summary.minutes} min` : "–"],
-          ["Sets", String(summary.setCount)],
-          ["Volume", summary.volume ? fmtKg(summary.volume) : "–"],
-        ].map(([k, v]) => (
+          { k: "Volume", v: summary.volume ? fmtKg(summary.volume) : "–", d: prevSummary?.volume && summary.volume ? pctDiff(summary.volume, prevSummary.volume) : null },
+          { k: "Sets", v: String(summary.setCount), d: prevSummary ? summary.setCount - prevSummary.setCount : null, abs: true },
+          { k: "Records", v: String(prs.length), d: null },
+        ].map(({ k, v, d, abs }) => (
           <div key={k} className="card p-3">
-            <dt className="flex items-center gap-1 text-sm text-mute">
-              {k === "Tijd" && <Clock size={13} aria-hidden />}
-              {k}
-            </dt>
+            <dt className="text-sm text-mute">{k}</dt>
             <dd className="display text-3xl font-bold">{v}</dd>
+            {d !== null && d !== undefined && Math.abs(d) > 0 && (
+              <dd className={`text-xs font-semibold ${d > 0 ? "text-go" : "text-warn"}`}>
+                {d > 0 ? "+" : ""}
+                {abs ? d : `${d}%`} vs vorige
+              </dd>
+            )}
           </div>
         ))}
       </dl>
+
+      {(ups.length > 0 || downs.length > 0) && (
+        <section className="card space-y-3 p-4">
+          <h2 className="font-semibold">Ten opzichte van je vorige {DAY_LABEL[workout.day_type]}</h2>
+          {ups.length > 0 && (
+            <ul className="space-y-1 text-sm">
+              {ups.map((e) => (
+                <li key={e.exerciseId} className="flex items-center gap-2">
+                  <TrendingUp size={15} className="shrink-0 text-go" aria-hidden />
+                  <span className="flex-1">{EXERCISE_MAP[e.exerciseId]?.name}</span>
+                  <span className="text-mute">
+                    {formatLoad(e.exerciseId, Number(e.best.weight_kg))} × {e.best.reps}
+                  </span>
+                  <DeltaBadge pct={e.deltaPct} />
+                </li>
+              ))}
+            </ul>
+          )}
+          {downs.length > 0 && (
+            <ul className="space-y-1 text-sm">
+              {downs.map((e) => (
+                <li key={e.exerciseId} className="flex items-center gap-2">
+                  <TrendingDown size={15} className="shrink-0 text-warn" aria-hidden />
+                  <span className="flex-1">{EXERCISE_MAP[e.exerciseId]?.name}</span>
+                  <span className="text-mute">
+                    {formatLoad(e.exerciseId, Number(e.best.weight_kg))} × {e.best.reps}
+                  </span>
+                  <DeltaBadge pct={e.deltaPct} />
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      )}
+
+      {summary.completion && summary.completion.missing.length > 0 && (
+        <section className="rounded-2xl border border-warn/30 bg-warn/5 p-4 text-sm">
+          <h2 className="mb-1 font-semibold">Niet (helemaal) gedaan</h2>
+          <ul className="space-y-0.5">
+            {summary.completion.missing.map((m) => (
+              <li key={m.exerciseId} className="flex justify-between gap-2">
+                <span>{EXERCISE_MAP[m.exerciseId]?.name}</span>
+                <span className="text-mute">
+                  {m.done}/{m.planned} sets
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       {prs.length > 0 && (
         <section className="rounded-2xl border border-pin/50 bg-pin-dim/40 p-4">

@@ -8,6 +8,7 @@ import type { ReactionState } from "@/lib/social";
 import type { PR } from "@/lib/stats";
 import type { Workout } from "@/lib/types";
 import { themeFor } from "@/lib/themes";
+import { CompletionRing } from "./CompletionRing";
 import { CrewName } from "./CrewName";
 import { Reactions } from "./Reactions";
 
@@ -80,6 +81,7 @@ export function WorkoutCard({
               <DayTag day={w.day_type} />
             )}
           </p>
+          {summary?.completion && <CompletionRing pct={summary.completion.pct} size={30} stroke={3.5} />}
           <span className="shrink-0 text-xs text-mute">{when}</span>
           {!cardio && <ChevronRight size={16} className="shrink-0 self-center text-mute" aria-hidden />}
         </div>
@@ -96,7 +98,9 @@ export function WorkoutCard({
                   <Clock size={13} aria-hidden /> {summary.minutes} min
                 </span>
               )}
-              <span>{summary.setCount} sets</span>
+              <span>
+                {summary.completion ? `${summary.completion.done}/${summary.completion.planned}` : summary.setCount} sets
+              </span>
               {summary.volume > 0 && <span>{fmtKg(summary.volume)} volume</span>}
             </p>
             {summary.exercises.length > 0 && maxExercises > 0 && (

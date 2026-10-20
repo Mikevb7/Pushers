@@ -1,8 +1,8 @@
 // Samenvattingen van trainingen: voor het logboek, de crew-feed, profielen en vergelijken.
-import { EXERCISE_MAP } from "./exercises";
+import { EXERCISE_MAP, optionsFor } from "./exercises";
 import { addDays, dayKey, weekday } from "./dates";
 import { countingSets, e1rm, type DatedSet } from "./stats";
-import type { DayType } from "./schedule";
+import { PLAN, type DayType, type GymDay } from "./schedule";
 import type { Workout } from "./types";
 
 /** Vaste kleur per trainingsdag, voor kalender en labels. */
@@ -24,7 +24,55 @@ export interface ExerciseSummary {
   deltaPct: number | null;
 }
 
+export interface Completion {
+  done: number;
+  planned: number;
+  pct: number;
+  /** Oefeningen uit het schema die niet (helemaal) gedaan zijn. */
+  missing: { exerciseId: string; done: number; planned: number }[];
+}
+
+/**
+ * Hoeveel van het schema is afgemaakt: per oefening tellen de sets mee tot het geplande aantal
+ * (een variant of alternatief telt ook, extra sets niet). Cardio en afvinken: null.
+ */
+export function completion(w: Workout, sets: { workout_id: string; exercise_id: string }[]): Completion | null {
+  if (w.day_type === "cardio" || w.quick_check) return null;
+  const plan = PLAN[w.day_type as GymDay];
+  if (!plan) return null;
+  const mine = sets.filter((s) => s.workout_id === w.id);
+  const left = new Map<string, number>();
+  for (const s of mine) left.set(s.exercise_id, (left.get(s.exercise_id) ?? 0) + 1);
+  let done = 0;
+  let planned = 0;
+  const missing: Completion["missing"] = [];
+  // Elke oefening telt voor één plek in het schema: eerst de plek waar hij zelf staat,
+  // daarna als alternatief/variant voor een andere plek. Zo tellen extra sets niet dubbel.
+  const used = new Set<string>();
+  const got = new Map<number, number>();
+  plan.items.forEach((it, i) => {
+    const n = Math.min(left.get(it.exerciseId) ?? 0, it.sets);
+    if (left.has(it.exerciseId)) used.add(it.exerciseId);
+    got.set(i, n);
+  });
+  plan.items.forEach((it, i) => {
+    for (const opt of optionsFor(it.exerciseId)) {
+      const g = got.get(i)!;
+      if (g >= it.sets || used.has(opt) || !left.has(opt)) continue;
+      got.set(i, g + Math.min(left.get(opt)!, it.sets - g));
+      used.add(opt);
+    }
+  });
+  plan.items.forEach((it, i) => {
+    planned += it.sets;
+    done += got.get(i)!;
+    if (got.get(i)! < it.sets) missing.push({ exerciseId: it.exerciseId, done: got.get(i)!, planned: it.sets });
+  });
+  return { done, planned, pct: planned ? Math.round((done / planned) * 100) : 0, missing };
+}
+
 export interface WorkoutSummary {
+  completion: Completion | null;
   minutes: number | null;
   setCount: number;
   /** Totaal kg × reps (machines met plaatnummers en lichaamsgewicht tellen niet mee). */
@@ -90,7 +138,7 @@ export function summarize(workout: Workout, userSets: DatedSet[], bodyweight = 7
     return { exerciseId, sets: mine, best, prevBest, deltaPct };
   });
 
-  return { minutes: minutesOf(workout), setCount: sets.length, volume: volumeOf(sets), exercises };
+  return { completion: completion(workout, sets), minutes: minutesOf(workout), setCount: sets.length, volume: volumeOf(sets), exercises };
 }
 
 /** Kalender: alle dagen van de maand, aangevuld tot hele weken (maandag eerst). */

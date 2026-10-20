@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { compareBest, lastSessionSets, monthGrid, shiftMonth, summarize, volumeOf } from "./history";
+import { compareBest, completion, lastSessionSets, monthGrid, shiftMonth, summarize, volumeOf } from "./history";
 import type { DatedSet } from "./stats";
 import type { Workout } from "./types";
 
@@ -80,5 +80,22 @@ describe("kalender", () => {
   it("maand verschuiven", () => {
     expect(shiftMonth("2026-01", -1)).toBe("2025-12");
     expect(shiftMonth("2026-12", 1)).toBe("2027-01");
+  });
+});
+
+describe("afgemaakt-percentage", () => {
+  it("telt sets per oefening tot het plan, varianten tellen mee, extra sets niet", () => {
+    const wk = { ...w("x", "2026-10-20"), day_type: "push" as const };
+    const sets = [
+      ...[1, 2, 3, 4].map((i) => s("x", "2026-10-20", "incline-smith", i, 40, 8)), // 4 sets, plan 3 → 3
+      ...[1, 2, 3].map((i) => s("x", "2026-10-20", "cable-lateral-wit", i, 2, 12)), // variant telt
+    ];
+    const c = completion(wk, sets)!;
+    const planned = 3 + 3 + 3 + 3 + 3 + 3 + 2;
+    expect(c.planned).toBe(planned);
+    expect(c.done).toBe(6);
+    expect(c.pct).toBe(Math.round((6 / planned) * 100));
+    expect(c.missing.map((m) => m.exerciseId)).toContain("chest-press");
+    expect(c.missing.map((m) => m.exerciseId)).not.toContain("cable-lateral");
   });
 });

@@ -320,3 +320,18 @@ describe("keuze van de basis-set en het einde van het blok", () => {
     expect(s).toMatchObject({ kind: "hold", weight: 70, reps: 10 });
   });
 });
+
+describe("sets onder je range tellen niet mee voor kracht", () => {
+  it("lateral raise: 5 × 15 + 10 × 7 → 5 × 18 is vooruitgang, geen −33%", () => {
+    const mk = (w: string, d: string, rows: [number, number][]) =>
+      rows.map(([kg, r], i) => ({ ...set({ exercise_id: "cable-lateral", weight_kg: kg, reps: r, set_number: i + 1, workout_id: w }), date: `${d}T10:00:00Z` }));
+    const sets = [...mk("a", "2026-10-15", [[5, 15], [5, 14], [10, 7]]), ...mk("b", "2026-10-20", [[5, 15], [5, 17], [5, 18]])];
+    const series = exerciseSeries(sets, "cable-lateral");
+    expect(series[0]).toMatchObject({ weight: 5, reps: 15 });
+    expect(exerciseProgress(series, "start", "2026-10-20")!).toBeGreaterThan(0);
+  });
+  it("zat er geen enkele set in de range, dan telt de beste set toch", () => {
+    const sets = [{ ...set({ exercise_id: "incline-smith", weight_kg: 45, reps: 4 }), date: "2026-10-20T10:00:00Z" }];
+    expect(exerciseSeries(sets, "incline-smith")[0]).toMatchObject({ weight: 45, reps: 4 });
+  });
+});

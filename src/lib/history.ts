@@ -1,7 +1,7 @@
 // Samenvattingen van trainingen: voor het logboek, de crew-feed, profielen en vergelijken.
 import { EXERCISE_MAP } from "./exercises";
 import { addDays, dayKey, weekday } from "./dates";
-import { e1rm, type DatedSet } from "./stats";
+import { countingSets, e1rm, type DatedSet } from "./stats";
 import type { DayType } from "./schedule";
 import type { Workout } from "./types";
 
@@ -79,10 +79,10 @@ export function summarize(workout: Workout, userSets: DatedSet[], bodyweight = 7
 
   const exercises = order.map((exerciseId) => {
     const mine = sets.filter((s) => s.exercise_id === exerciseId).sort((a, b) => a.set_number - b.set_number);
-    const best = bestSet(mine, bodyweight)!;
+    const best = bestSet(countingSets(mine), bodyweight)!;
     const earlier = before.filter((s) => s.exercise_id === exerciseId);
     const lastWorkout = earlier.sort((a, b) => b.date.localeCompare(a.date))[0]?.workout_id;
-    const prevBest = lastWorkout ? bestSet(earlier.filter((s) => s.workout_id === lastWorkout), bodyweight) : null;
+    const prevBest = lastWorkout ? bestSet(countingSets(earlier.filter((s) => s.workout_id === lastWorkout)), bodyweight) : null;
     const deltaPct =
       prevBest && value(prevBest, bodyweight) > 0
         ? Math.round((value(best, bodyweight) / value(prevBest, bodyweight) - 1) * 1000) / 10

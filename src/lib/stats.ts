@@ -1,7 +1,8 @@
 // Kracht, progressie in %, PR's en volume.
 // Let op: is_drop betekent "na deze set volgde een dropset". De set zelf is een
 // gewone werkset en telt dus volledig mee; alleen de drop (drop_weight_kg/drop_reps) niet.
-import { EXERCISE_MAP, type Muscle, type Exercise } from "./exercises";
+import { EXERCISE_MAP, optionsFor, type Muscle, type Exercise } from "./exercises";
+import { PLAN } from "./schedule";
 import { addDays, dayKey } from "./dates";
 import type { SetRow } from "./types";
 
@@ -25,13 +26,36 @@ export interface SessionPoint {
   reps: number;
 }
 
+/** Laagste aantal reps van de range uit het schema (ook voor varianten/alternatieven). */
+export function repMinFor(exerciseId: string): number | null {
+  for (const day of Object.values(PLAN)) {
+    for (const it of day.items) if (it.exerciseId === exerciseId || optionsFor(it.exerciseId).includes(exerciseId)) return it.repMin;
+  }
+  return null;
+}
+
+/**
+ * De set die telt voor kracht in een training. Sets onder je rep-range (bijv. 10 kg × 7
+ * bij een range van 12-15) zijn "te zwaar gepakt" en geven een vertekend beeld:
+ * de formule maakt van weinig reps op een veel zwaarder gewicht te snel een hoge max.
+ * Die tellen dus alleen mee als er geen enkele set in je range zat.
+ */
+export function countingSets<T extends { exercise_id: string; reps: number }>(sets: T[]): T[] {
+  if (!sets.length) return sets;
+  const min = repMinFor(sets[0].exercise_id);
+  if (min === null) return sets;
+  const ok = sets.filter((s) => s.reps >= min);
+  return ok.length ? ok : sets;
+}
+
 /** Beste set per training voor één oefening, oudste eerst. */
 export function exerciseSeries(sets: DatedSet[], exerciseId: string, bodyweight = 75): SessionPoint[] {
   const ex = EXERCISE_MAP[exerciseId];
   if (!ex) return [];
   const best = new Map<string, SessionPoint>();
-  for (const s of sets) {
-    if (s.exercise_id !== exerciseId) continue;
+  const byWorkout = new Map<string, DatedSet[]>();
+  for (const s of sets) if (s.exercise_id === exerciseId) byWorkout.set(s.workout_id, [...(byWorkout.get(s.workout_id) ?? []), s]);
+  for (const s of [...byWorkout.values()].flatMap((ws) => countingSets(ws))) {
     const v = e1rm(s.weight_kg, s.reps, ex, bodyweight);
     const cur = best.get(s.workout_id);
     if (!cur || v > cur.e1rm) {

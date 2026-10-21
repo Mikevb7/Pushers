@@ -4,7 +4,7 @@ import { loadHabits, loadProfiles, loadSets, loadSocial, loadWorkouts, requireMe
 import { summarize } from "@/lib/history";
 import { reactionState } from "@/lib/social";
 import { WorkoutCard } from "@/components/WorkoutCard";
-import { addDays, dayKey } from "@/lib/dates";
+import { addDays, dayKey, daysBetween } from "@/lib/dates";
 import { habitStreak, weekStatus, weekStreak } from "@/lib/rotation";
 import { CrewName } from "@/components/CrewName";
 import { themeFor } from "@/lib/themes";
@@ -15,6 +15,13 @@ const PERIODS: { id: Period; label: string }[] = [
   { id: "maand", label: "Maand" },
   { id: "start", label: "Sinds start" },
 ];
+
+/** "vandaag", "gisteren", "3 dagen geleden"; vanaf 4 dagen zonder training opvallend. */
+function lastAgo(day: string | null, today: string) {
+  if (!day) return { text: "nog niet getraind", late: true };
+  const d = daysBetween(day, today);
+  return { text: d <= 0 ? "vandaag getraind" : d === 1 ? "gisteren getraind" : `${d} dagen geleden`, late: d >= 4 };
+}
 
 export default async function CrewPage({ searchParams }: { searchParams: Promise<{ periode?: string }> }) {
   const sp = await searchParams;
@@ -40,6 +47,11 @@ export default async function CrewPage({ searchParams }: { searchParams: Promise
         pct: overallProgress(mySets, period, p.bodyweight_kg, today),
         week: weekStatus(myWorkouts, today).gymDone,
         weeks: weekStreak(myWorkouts, today),
+        lastGym: myWorkouts
+          .filter((w) => w.completed_at && w.day_type !== "cardio")
+          .map((w) => dayKey(w.started_at))
+          .sort()
+          .at(-1) ?? null,
         water: habitStreak(myHabits, (h) => h.water_ml >= p.water_goal_ml, today),
         creatine: habitStreak(myHabits, (h) => h.creatine, today),
       };
@@ -91,6 +103,7 @@ export default async function CrewPage({ searchParams }: { searchParams: Promise
                     <CrewName userId={b.p.id} name={b.p.display_name} />
                   </span>
                   <span className="flex flex-wrap gap-x-3 text-xs text-mute">
+                    <span className={lastAgo(b.lastGym, today).late ? "font-semibold text-warn" : ""}>{lastAgo(b.lastGym, today).text}</span>
                     <span>{b.week}/4 deze week</span>
                     {b.weeks > 0 && (
                       <span className="inline-flex items-center gap-0.5">

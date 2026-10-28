@@ -335,6 +335,7 @@ function ExerciseBlock({
   info,
   sets,
   onSwap,
+  taken,
   onLog,
   onDelete,
   onUpdate,
@@ -361,6 +362,8 @@ function ExerciseBlock({
   info: ExerciseInfo | undefined;
   sets: SetRow[];
   onSwap: (to: string) => void;
+  /** Oefeningen die al op een andere plek in deze training staan: niet als alternatief tonen. */
+  taken: string[];
   onLog: (exerciseId: string, setNumber: number, v: Parameters<React.ComponentProps<typeof SetForm>["onSave"]>[0]) => Promise<void>;
   onDelete: (id: string) => void;
 }) {
@@ -429,7 +432,7 @@ function ExerciseBlock({
       )}
 
       <div className="space-y-2 px-3 pb-3">
-        {sets.length === 0 && optionsFor(item.exerciseId).length > 1 && (
+        {sets.length === 0 && optionsFor(item.exerciseId).filter((a) => !taken.includes(a)).length > 1 && (
           <div>
             <button type="button" onClick={() => setPicking((p) => !p)} className="flex items-center gap-1.5 text-sm font-medium text-pin-deep" aria-expanded={picking}>
               <Repeat size={14} /> Ander apparaat of oefening
@@ -437,7 +440,7 @@ function ExerciseBlock({
             {picking && (
               <div className="mt-2 flex flex-wrap gap-1.5">
                 {optionsFor(item.exerciseId)
-                  .filter((a) => a !== exerciseId)
+                  .filter((a) => a !== exerciseId && !taken.includes(a))
                   .map((a) => (
                     <button
                       key={a}
@@ -494,9 +497,14 @@ export function TrainingSession({ workoutId, day, startedAt, items, notes, info,
   const [sets, setSets] = useState<SetRow[]>(logged);
   const [swaps, setSwaps] = useState<Record<number, string>>(() => {
     // Als er al sets van een alternatief zijn gelogd, toon dat alternatief.
+    // Een oefening die zelf ook in het schema staat telt nooit als alternatief voor een andere plek,
+    // anders verschijnen dezelfde sets in twee blokken (en tellen ze dubbel mee).
     const out: Record<number, string> = {};
+    const planned = new Set(items.map((it) => it.exerciseId));
     items.forEach((it, i) => {
-      const alt = optionsFor(it.exerciseId).find((a) => logged.some((s) => s.exercise_id === a));
+      const alt = optionsFor(it.exerciseId)
+        .filter((a) => a === it.exerciseId || !planned.has(a))
+        .find((a) => logged.some((s) => s.exercise_id === a));
       if (alt && alt !== it.exerciseId) out[i] = alt;
       else if (!alt && preferred[i]) out[i] = preferred[i];
     });
@@ -679,6 +687,7 @@ export function TrainingSession({ workoutId, day, startedAt, items, notes, info,
               info={info[exId]}
               sets={sets.filter((s) => s.exercise_id === exId).sort((a, b) => a.set_number - b.set_number)}
               onSwap={(to) => setSwaps((s) => ({ ...s, [i]: to }))}
+              taken={items.map((_, j) => exOf(j)).filter((_, j) => j !== i)}
               onLog={(id, n, v) => onLog(id, n, v, i)}
               onDelete={onDelete}
               onUpdate={onUpdate}

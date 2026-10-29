@@ -30,11 +30,16 @@ export interface Exercise {
   increment: number; // kg per stap omhoog
   isolation: boolean; // isolatie-oefening: dropset toegestaan
   exclBar?: boolean; // gewicht loggen zonder stang
+  /** Gewicht van de stang. Je logt alleen de schijven; dit telt alleen achter de schermen mee (kracht, %, volume, voorstellen). */
+  barKg?: number;
   plates?: boolean; // gewicht loggen als plaatnummer (machines zonder kg op het blok)
   stack?: number[]; // de echte gewichten op het blok van dit apparaat (je kiest er één)
   unit?: "lbs"; // blok staat alleen in lbs (dan log je het getal dat op het blok staat)
   alternatives: string[]; // als het apparaat bezet is
 }
+
+/** Echte last: gelogd gewicht plus de stang (als die niet wordt meegelogd). */
+export const barOf = (ex: Exercise) => ex.barKg ?? 0;
 
 const yt = (q: string) => `https://www.youtube.com/results?search_query=${encodeURIComponent(q + " uitvoering")}`;
 export const videoUrl = (e: Exercise) => yt(e.name);
@@ -58,6 +63,7 @@ const BASE_EXERCISES: Exercise[] = [
     increment: 2.5,
     isolation: false,
     exclBar: true,
+    barKg: 27.5, // zware stang van de witte Smith
     alternatives: ["incline-db-press", "chest-press"],
   },
   {

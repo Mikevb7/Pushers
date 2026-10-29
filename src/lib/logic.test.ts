@@ -335,3 +335,28 @@ describe("sets onder je range tellen niet mee voor kracht", () => {
     expect(exerciseSeries(sets, "incline-smith")[0]).toMatchObject({ weight: 45, reps: 4 });
   });
 });
+
+describe("stang en mediaan", () => {
+  const mk = (date: string, w: number, reps: number, wid: string): DatedSet => ({
+    id: `${wid}-${w}-${reps}`, workout_id: wid, user_id: "u", exercise_id: "incline-smith", set_number: 1,
+    weight_kg: w, reps, rir: 0, is_drop: false, drop_weight_kg: null, drop_reps: null, created_at: date, date,
+  });
+  it("incline Smith: stang (27,5 kg) telt mee, dus 10 -> 15 kg schijven is geen +42%", () => {
+    const sets = [
+      mk("2026-10-15T12:00:00Z", 5, 10, "a"),
+      mk("2026-10-20T12:00:00Z", 10, 8, "b"),
+      mk("2026-10-22T12:00:00Z", 10, 10, "c"),
+      mk("2026-10-29T12:00:00Z", 10, 11, "d"),
+      mk("2026-10-29T12:00:00Z", 15, 6, "d"),
+    ];
+    const p = exerciseProgress(exerciseSeries(sets, "incline-smith"), "start", "2026-10-29")!;
+    expect(p).toBeGreaterThan(10);
+    expect(p).toBeLessThan(25);
+  });
+  it("totaal is de mediaan: één uitschieter trekt het niet omhoog", async () => {
+    const { median } = await import("./stats");
+    expect(median([2, 3, 4, 100])).toBe(3.5);
+    expect(median([5, 1, 3])).toBe(3);
+    expect(median([])).toBeNull();
+  });
+});

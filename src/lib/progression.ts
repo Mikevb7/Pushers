@@ -1,5 +1,5 @@
 // Progressive overload: vaste regels die per oefening het volgende gewicht voorstellen.
-import { formatLoad, snapToStack, stackStep, type Exercise } from "./exercises";
+import { barOf, formatLoad, snapToStack, stackStep, type Exercise } from "./exercises";
 import { e1rm } from "./stats";
 import type { PlanItem } from "./schedule";
 import type { SetRow } from "./types";
@@ -66,6 +66,8 @@ export function suggest(item: PlanItem, ex: Exercise, history: Session[]): Sugge
 
   const bodyweight = ex.load === "lichaamsgewicht";
   const est = (x: SetRow) => e1rm(Number(x.weight_kg), x.reps, ex);
+  // Rekenen gebeurt met de echte last (incl. stang); voorstellen blijven in wat je logt (schijven).
+  const bar = barOf(ex);
 
   // Uitschieter: een training die ineens >50% sterker is dan de keer ervoor (bijv. verkeerde
   // oefening gelogd) gebruiken we niet als basis. Dan rekenen we met de training daarvoor.
@@ -96,7 +98,7 @@ export function suggest(item: PlanItem, ex: Exercise, history: Session[]): Sugge
 
   /** Gewicht voor `reps` herhalingen op basis van je geschatte max, in stappen van het apparaat. */
   const weightFor = (reps: number, dir: "up" | "down") => {
-    const target = est(top) / (1 + reps / 30);
+    const target = est(top) / (1 + reps / 30) - bar;
     if (ex.stack?.length) {
       // Echte gewichten op het blok: minstens 1 stap, hooguit 2 (blokken springen soms flink).
       const base = ex.stack.indexOf(snapToStack(ex, w));
@@ -110,7 +112,7 @@ export function suggest(item: PlanItem, ex: Exercise, history: Session[]): Sugge
     return round(Math.max(ex.increment, w + k * ex.increment));
   };
   const repsAt = (weight: number) =>
-    Math.min(item.repMax, Math.max(item.repMin, Math.round(30 * (est(top) / weight - 1))));
+    Math.min(item.repMax, Math.max(item.repMin, Math.round(30 * (est(top) / (weight + bar) - 1))));
 
   const atStackMax = !!ex.stack?.length && snapToStack(ex, w) === ex.stack[ex.stack.length - 1];
   if (!bodyweight && atStackMax && (allTop || aboveRange || rampedToTop || tooEasy)) {
@@ -133,8 +135,8 @@ export function suggest(item: PlanItem, ex: Exercise, history: Session[]): Sugge
     const realW = snapToStack(ex, w);
     // Reps tot falen = gedane reps + wat je nog over had (RIR).
     const capacity = e1rm(Number(top.weight_kg), top.reps + (top.rir ?? 0), ex);
-    const expectReps = ex.plates ? item.repMin : Math.round(30 * (capacity / next - 1));
-    const jumpPct = Math.round((next / realW - 1) * 100);
+    const expectReps = ex.plates ? item.repMin : Math.round(30 * (capacity / (next + bar) - 1));
+    const jumpPct = Math.round(((next + bar) / (realW + bar) - 1) * 100);
     if (expectReps < item.repMin - 2 && top.reps < item.repMax + 5) {
       const goal = Math.min(item.repMax + 5, Math.max(top.reps + 1, item.repMax + 1));
       return {

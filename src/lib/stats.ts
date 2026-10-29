@@ -1,7 +1,7 @@
 // Kracht, progressie in %, PR's en volume.
 // Let op: is_drop betekent "na deze set volgde een dropset". De set zelf is een
 // gewone werkset en telt dus volledig mee; alleen de drop (drop_weight_kg/drop_reps) niet.
-import { EXERCISE_MAP, optionsFor, type Muscle, type Exercise } from "./exercises";
+import { EXERCISE_MAP, barOf, optionsFor, type Muscle, type Exercise } from "./exercises";
 import { PLAN } from "./schedule";
 import { addDays, dayKey } from "./dates";
 import type { SetRow } from "./types";
@@ -10,10 +10,10 @@ export interface DatedSet extends SetRow {
   date: string; // ISO datum van de training
 }
 
-/** Geschatte 1-rep-max (Epley). Bij lichaamsgewicht telt je eigen gewicht mee. */
+/** Geschatte 1-rep-max (Epley). Bij lichaamsgewicht telt je eigen gewicht mee, bij een stang die je niet logt de stang. */
 export function e1rm(weight: number, reps: number, ex: Exercise, bodyweight = 75): number {
   if (reps <= 0) return 0;
-  const load = ex.load === "lichaamsgewicht" ? bodyweight + Number(weight) : Number(weight);
+  const load = ex.load === "lichaamsgewicht" ? bodyweight + Number(weight) : Number(weight) + barOf(ex);
   if (load <= 0) return 0;
   return load * (1 + Math.min(reps, 20) / 30);
 }
@@ -108,13 +108,22 @@ export function exerciseProgress(series: SessionPoint[], period: Period, today =
   return base > 0 ? ((now - base) / base) * 100 : null;
 }
 
-const avg = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null);
+/**
+ * Mediaan: de middelste waarde. Eén uitschieter (bijv. een oefening die van 10 naar 15 kg ging)
+ * trekt het totaal dan niet omhoog, zoals bij een gemiddelde.
+ */
+export function median(xs: number[]): number | null {
+  if (!xs.length) return null;
+  const s = [...xs].sort((a, b) => a - b);
+  const m = Math.floor(s.length / 2);
+  return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
+}
 
 export function exerciseIdsIn(sets: DatedSet[]): string[] {
   return [...new Set(sets.map((s) => s.exercise_id))].filter((id) => EXERCISE_MAP[id]);
 }
 
-/** Gemiddelde % per spiergroep (primaire spier van elke oefening). */
+/** % per spiergroep (mediaan over de oefeningen met die primaire spier). */
 export function muscleProgress(sets: DatedSet[], period: Period, bodyweight = 75, today = dayKey()) {
   const groups = new Map<Muscle, number[]>();
   for (const id of exerciseIdsIn(sets)) {
@@ -124,16 +133,16 @@ export function muscleProgress(sets: DatedSet[], period: Period, bodyweight = 75
     groups.set(m, [...(groups.get(m) ?? []), p]);
   }
   return [...groups.entries()]
-    .map(([muscle, ps]) => ({ muscle, pct: avg(ps)!, exercises: ps.length }))
+    .map(([muscle, ps]) => ({ muscle, pct: median(ps)!, exercises: ps.length }))
     .sort((a, b) => b.pct - a.pct);
 }
 
-/** Totale % sterker: gemiddelde over alle oefeningen met genoeg data. */
+/** Totale % sterker: mediaan over alle oefeningen met genoeg data. */
 export function overallProgress(sets: DatedSet[], period: Period, bodyweight = 75, today = dayKey()): number | null {
   const ps = exerciseIdsIn(sets)
     .map((id) => exerciseProgress(exerciseSeries(sets, id, bodyweight), period, today))
     .filter((p): p is number => p !== null);
-  return avg(ps);
+  return median(ps);
 }
 
 export interface PR {

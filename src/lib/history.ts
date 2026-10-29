@@ -1,5 +1,5 @@
 // Samenvattingen van trainingen: voor het logboek, de crew-feed, profielen en vergelijken.
-import { EXERCISE_MAP, optionsFor } from "./exercises";
+import { EXERCISE_MAP, barOf, optionsFor } from "./exercises";
 import { addDays, dayKey, weekday } from "./dates";
 import { countingSets, e1rm, type DatedSet } from "./stats";
 import { PLAN, type DayType, type GymDay } from "./schedule";
@@ -75,7 +75,7 @@ export interface WorkoutSummary {
   completion: Completion | null;
   minutes: number | null;
   setCount: number;
-  /** Totaal kg × reps (machines met plaatnummers en lichaamsgewicht tellen niet mee). */
+  /** Totaal kg × reps, stang meegerekend (machines met plaatnummers en lichaamsgewicht tellen niet mee). */
   volume: number;
   exercises: ExerciseSummary[];
 }
@@ -110,7 +110,7 @@ export function volumeOf(sets: DatedSet[]): number {
   return sets.reduce((a, s) => {
     const ex = EXERCISE_MAP[s.exercise_id];
     if (!ex || ex.plates || ex.unit || ex.load === "lichaamsgewicht") return a;
-    return a + Number(s.weight_kg) * s.reps;
+    return a + (Number(s.weight_kg) + barOf(ex)) * s.reps;
   }, 0);
 }
 

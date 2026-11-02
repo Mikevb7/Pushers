@@ -237,3 +237,22 @@ export async function deleteWeight(day: string) {
   await syncBodyweight(supabase, user.id);
   refresh();
 }
+
+/**
+ * Lichte "is er iets veranderd?"-check voor de homepage terwijl iemand traint.
+ * Geeft alleen een paar getallen terug (geen rijen), zodat het verversen elke minuut
+ * bijna geen dataverkeer kost. De pagina zelf wordt pas opnieuw geladen als dit verandert.
+ */
+export async function crewPulse(): Promise<string> {
+  const { supabase } = await requireUser();
+  const since = new Date(Date.now() - 36 * 3600 * 1000).toISOString();
+  const week = new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString();
+  const [w, s, r, c] = await Promise.all([
+    supabase.from("workouts").select("id, completed_at").gte("started_at", since),
+    supabase.from("sets").select("id", { count: "exact", head: true }).gte("created_at", since),
+    supabase.from("workout_reactions").select("workout_id", { count: "exact", head: true }).gte("created_at", week),
+    supabase.from("workout_comments").select("id", { count: "exact", head: true }).gte("created_at", week),
+  ]);
+  const workouts = (w.data ?? []).map((x) => `${x.id.slice(0, 8)}${x.completed_at ? "d" : "o"}`).sort().join(",");
+  return [workouts, s.count ?? 0, r.count ?? 0, c.count ?? 0].join("|");
+}

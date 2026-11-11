@@ -1,5 +1,8 @@
+import Link from "next/link";
+import { BookOpen, Check, ChevronRight } from "lucide-react";
 import { requireMe } from "@/lib/data";
-import { signOut, updateProfile } from "@/app/actions";
+import { PROGRAMS, programOf } from "@/lib/schedule";
+import { setProgram, signOut, updateProfile } from "@/app/actions";
 
 export default async function ProfilePage() {
   const { profile, user } = await requireMe();
@@ -33,6 +36,40 @@ export default async function ProfilePage() {
         </div>
         <button className="w-full rounded-full bg-pin py-3.5 font-semibold text-chalk">Opslaan</button>
       </form>
+
+      <section className="space-y-2">
+        <h2 className="display text-2xl font-semibold uppercase">Schema</h2>
+        <p className="text-sm text-mute">Geldt vanaf je volgende training. Je oude trainingen blijven zoals ze waren.</p>
+        {Object.values(PROGRAMS).map((p) => {
+          const on = programOf(profile.program).id === p.id;
+          return (
+            <form key={p.id} action={setProgram}>
+              <input type="hidden" name="program" value={p.id} />
+              <button
+                disabled={on}
+                className={`flex w-full items-start gap-3 rounded-2xl border p-4 text-left ${on ? "border-pin bg-pin-dim/30" : "border-line bg-steel"}`}
+              >
+                <span className={`mt-0.5 grid size-5 shrink-0 place-items-center rounded-full border ${on ? "border-pin bg-pin text-chalk" : "border-line"}`}>
+                  {on && <Check size={13} />}
+                </span>
+                <span>
+                  <span className="block font-semibold">{p.name}</span>
+                  <span className="block text-sm text-mute">{p.description}</span>
+                </span>
+              </button>
+            </form>
+          );
+        })}
+      </section>
+
+      <Link href="/oefeningen" className="card flex items-center gap-3 p-4">
+        <BookOpen size={20} className="text-pin-deep" aria-hidden />
+        <span className="flex-1">
+          <span className="block font-semibold">Oefeningenbibliotheek</span>
+          <span className="block text-sm text-mute">Alle oefeningen met uitleg, filter op spiergroep</span>
+        </span>
+        <ChevronRight size={18} className="text-mute" aria-hidden />
+      </Link>
 
       <form action={signOut}>
         <button className="w-full card py-3 font-semibold text-mute">Uitloggen</button>

@@ -28,8 +28,8 @@ export default async function LogbookPage({ searchParams }: { searchParams: Prom
   const [workouts, sets] = await Promise.all([loadWorkouts(supabase, user.id), loadSets(supabase, user.id)]);
   const today = dayKey();
   const week = weekStatus(workouts, today);
-  const next = nextGymDay(workouts);
-  const warn = trainingAdvice(workouts, today);
+  const next = nextGymDay(workouts, profile.program);
+  const warn = trainingAdvice(workouts, today, profile.program);
   const streak = weekStreak(workouts, today);
 
   const month = /^\d{4}-\d{2}$/.test(sp.maand ?? "") ? sp.maand! : today.slice(0, 7);

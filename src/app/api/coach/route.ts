@@ -44,7 +44,7 @@ export async function POST(req: Request) {
 
   const recentSets = sets.filter((s) => dayKey(s.date) >= addDays(today, -90));
   const context = buildCoachContext({ profile, workouts, sets: recentSets, habits, today });
-  const day = nextGymDay(workouts);
+  const day = nextGymDay(workouts, profile.program);
 
   const task =
     kind === "weekly"
@@ -70,7 +70,7 @@ export async function POST(req: Request) {
     const input = (block && block.type === "tool_use" ? block.input : {}) as { samenvatting?: string; aanpassingen?: unknown };
     const summary = (input.samenvatting ?? "").trim();
     if (!summary) throw new Error("Leeg antwoord");
-    const adjustments = sanitizeAdjustments(input.aanpassingen, kind === "today" ? day : undefined);
+    const adjustments = sanitizeAdjustments(input.aanpassingen, kind === "today" ? day : undefined, profile.program);
 
     const { data, error } = await supabase
       .from("coach_advice")

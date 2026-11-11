@@ -5,10 +5,16 @@ import { redirect } from "next/navigation";
 import { requireUser } from "@/lib/data";
 import { dayKey } from "@/lib/dates";
 import { EXERCISE_MAP } from "@/lib/exercises";
-import { ROTATION, type GymDay } from "@/lib/schedule";
+import { PROGRAMS, ROTATION, type GymDay } from "@/lib/schedule";
 import { REACTIONS } from "@/lib/types";
 
 const refresh = () => revalidatePath("/", "layout");
+
+type Supa = Awaited<ReturnType<typeof requireUser>>["supabase"];
+async function myProgram(supabase: Supa, userId: string): Promise<string> {
+  const { data } = await supabase.from("profiles").select("program").eq("id", userId).maybeSingle();
+  return (data?.program as string | undefined) ?? "standaard";
+}
 
 export async function startWorkout(day: GymDay) {
   if (!ROTATION.includes(day)) throw new Error("Onbekende training");
@@ -25,7 +31,8 @@ export async function startWorkout(day: GymDay) {
   const existing = open?.find((w) => dayKey(w.started_at) === dayKey());
   if (existing) redirect(`/training/${existing.id}`);
 
-  const { data, error } = await supabase.from("workouts").insert({ day_type: day }).select("id").single();
+  const program = await myProgram(supabase, user.id);
+  const { data, error } = await supabase.from("workouts").insert({ day_type: day, program }).select("id").single();
   if (error || !data) throw new Error(error?.message ?? "Kon training niet starten");
   redirect(`/training/${data.id}`);
 }
@@ -110,9 +117,10 @@ export async function discardWorkout(id: string) {
 /** Training afvinken zonder sets te loggen. */
 export async function quickCheck(day: GymDay) {
   if (!ROTATION.includes(day)) throw new Error("Onbekende training");
-  const { supabase } = await requireUser();
+  const { supabase, user } = await requireUser();
   const now = new Date().toISOString();
-  await supabase.from("workouts").insert({ day_type: day, completed_at: now, quick_check: true });
+  const program = await myProgram(supabase, user.id);
+  await supabase.from("workouts").insert({ day_type: day, completed_at: now, quick_check: true, program });
   refresh();
 }
 
@@ -169,6 +177,15 @@ export async function updateProfile(formData: FormData) {
     .eq("id", user.id);
   refresh();
   redirect("/");
+}
+
+/** Kies je schema (geldt voor nieuwe trainingen; lopende en oude trainingen houden hun schema). */
+export async function setProgram(formData: FormData) {
+  const program = String(formData.get("program") ?? "");
+  if (!(program in PROGRAMS)) throw new Error("Onbekend schema");
+  const { supabase, user } = await requireUser();
+  await supabase.from("profiles").update({ program }).eq("id", user.id);
+  refresh();
 }
 
 export async function signOut() {

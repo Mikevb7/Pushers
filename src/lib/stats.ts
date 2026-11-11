@@ -2,7 +2,7 @@
 // Let op: is_drop betekent "na deze set volgde een dropset". De set zelf is een
 // gewone werkset en telt dus volledig mee; alleen de drop (drop_weight_kg/drop_reps) niet.
 import { EXERCISE_MAP, barOf, optionsFor, type Muscle, type Exercise } from "./exercises";
-import { PLAN } from "./schedule";
+import { PROGRAMS } from "./schedule";
 import { addDays, dayKey } from "./dates";
 import type { SetRow } from "./types";
 
@@ -28,10 +28,19 @@ export interface SessionPoint {
 
 /** Laagste aantal reps van de range uit het schema (ook voor varianten/alternatieven). */
 export function repMinFor(exerciseId: string): number | null {
-  for (const day of Object.values(PLAN)) {
-    for (const it of day.items) if (it.exerciseId === exerciseId || optionsFor(it.exerciseId).includes(exerciseId)) return it.repMin;
+  // Over alle schema's heen de laagste: een zware set van 5 telt mee als een schema 4-6 voorschrijft.
+  let min: number | null = null;
+  for (const program of Object.values(PROGRAMS)) {
+    for (const day of Object.values(program.plan)) {
+      for (const it of day.items) {
+        if (it.exerciseId === exerciseId || optionsFor(it.exerciseId).includes(exerciseId)) {
+          min = min === null ? it.repMin : Math.min(min, it.repMin);
+          break;
+        }
+      }
+    }
   }
-  return null;
+  return min;
 }
 
 /**

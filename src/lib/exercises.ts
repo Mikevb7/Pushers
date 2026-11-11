@@ -1,5 +1,6 @@
 // Oefeningenbibliotheek, gebaseerd op de apparatuur in Sportcentrum Hierden.
 // Foto's staan in /public/equipment.
+import { EXTRA_EXERCISES } from "./exercises-extra";
 
 export type Muscle =
   | "borst"
@@ -641,18 +642,14 @@ const BASE_EXERCISES: Exercise[] = [
   },
 ];
 
-// Kabeloefeningen kunnen ook op de witte Life Fitness (twee kolommen naast elkaar).
-// Daar staan plaatnummers op het blok in plaats van kilo's, dus het is een eigen variant
-// met eigen progressie. In de training kies je zelf op welk apparaat je hem doet.
-const WHITE_CABLE_VARIANTS = [
-  "cable-fly",
-  "cable-lateral",
-  "cable-rear-delt",
-  "straight-arm-pulldown",
-  "rope-pushdown",
-  "cable-overhead-ext",
-  "rope-crunch",
-];
+// Kabeloefeningen kun je altijd op allebei de kabelstations doen: het Evolve-station (kilo's)
+// en de witte Life Fitness (plaatnummers 1-16). Omdat de getallen niet te vergelijken zijn,
+// is elk station een eigen variant met eigen progressie; in de training kies je zelf.
+// Uitzondering: oefeningen die alleen op een vast onderdeel van het Evolve-station kunnen.
+const EVOLVE_ONLY = ["evolve-pulldown", "evolve-mid-row", "one-arm-cable-row", "cable-row-wide"];
+const isEvolveCable = (e: Exercise) => e.load === "kabel" && e.equipment.startsWith("Evolve") && !EVOLVE_ONLY.includes(e.id);
+/** Kabeloefeningen die standaard op de witte kabels staan: die krijgen een Evolve-variant. */
+const WHITE_BASE = ["bayesian-curl"];
 
 // ---------- Gewichtsblokken in Sportschool Hierden ----------
 // Elk apparaat heeft zijn eigen sprongen. Zo kun je alleen kiezen wat er echt op het blok staat.
@@ -727,10 +724,34 @@ function whiteVariant(base: Exercise): Exercise {
   };
 }
 
-export const EXERCISES: Exercise[] = BASE_EXERCISES.map((e) => ({ ...e, ...STACKS[e.id] })).flatMap((e) => {
-  if (!WHITE_CABLE_VARIANTS.includes(e.id)) return [e];
-  return [{ ...e, alternatives: [`${e.id}-wit`, ...e.alternatives] }, whiteVariant(e)];
-});
+function evolveVariant(base: Exercise): Exercise {
+  return {
+    ...base,
+    plates: undefined,
+    stack: EVOLVE,
+    id: `${base.id}-evolve`,
+    name: `${base.name}, Evolve`,
+    equipment: "Evolve-station, één kolom",
+    photo: "/equipment/evolve-cable.webp",
+    setup: base.setup.replace(/ ?Log het plaatnummer van de pin \(1-16\)\./, "").replace(/^Katrol/, "Op het Evolve-station: katrol"),
+    increment: 2.5,
+    alternatives: [base.id, ...base.alternatives],
+  };
+}
+
+export const EXERCISES: Exercise[] = [...BASE_EXERCISES, ...EXTRA_EXERCISES]
+  .map((e) => ({ ...e, ...STACKS[e.id] }))
+  .flatMap((e) => {
+    if (isEvolveCable(e)) return [{ ...e, alternatives: [`${e.id}-wit`, ...e.alternatives] }, whiteVariant(e)];
+    if (WHITE_BASE.includes(e.id)) return [{ ...e, alternatives: [`${e.id}-evolve`, ...e.alternatives] }, evolveVariant(e)];
+    return [e];
+  });
+
+/** Andere stations/varianten van dezelfde oefening (bijv. Evolve en witte kabels). */
+export function stationVariants(id: string): string[] {
+  const base = id.replace(/-(wit|evolve)$/, "");
+  return [base, `${base}-wit`, `${base}-evolve`].filter((v) => v !== id && EXERCISE_MAP[v]);
+}
 
 const num = (n: number) => String(Math.round(n * 100) / 100).replace(".", ",");
 

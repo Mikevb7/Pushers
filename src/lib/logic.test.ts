@@ -360,3 +360,30 @@ describe("stang en mediaan", () => {
     expect(median([])).toBeNull();
   });
 });
+
+describe("kort schema", () => {
+  it("bench 70 × 10 en nu 4-6 reps: voorstel rond 80 kg", async () => {
+    const { suggest } = await import("./progression");
+    const { getExercise } = await import("./exercises");
+    const { PLAN_KORT } = await import("./schedule");
+    const item = PLAN_KORT.push.items[0];
+    const mk = (n: number, reps: number) => ({ id: `b${n}`, workout_id: "w1", user_id: "u", exercise_id: "bench-press", set_number: n, weight_kg: 70, reps, rir: 1, is_drop: false, drop_weight_kg: null, drop_reps: null, created_at: "2026-11-08T10:00:00Z" });
+    const s = suggest(item, getExercise("bench-press"), [{ workoutId: "w1", date: "2026-11-08T10:00:00Z", sets: [mk(1, 10), mk(2, 10)] }]);
+    expect(s.kind).toBe("increase");
+    expect(s.weight).toBe(80);
+  });
+  it("alle oefeningen in beide schema's bestaan, supersets zijn aaneengesloten", async () => {
+    const { PROGRAMS } = await import("./schedule");
+    const { EXERCISE_MAP } = await import("./exercises");
+    for (const p of Object.values(PROGRAMS))
+      for (const d of p.rotation) {
+        const items = p.plan[d].items;
+        for (const it of items) expect(EXERCISE_MAP[it.exerciseId], it.exerciseId).toBeTruthy();
+        const letters = items.map((i) => i.superset ?? "-");
+        for (const l of new Set(letters.filter((x) => x !== "-"))) {
+          const idx = letters.flatMap((x, i) => (x === l ? [i] : []));
+          expect(idx.at(-1)! - idx[0] + 1).toBe(idx.length);
+        }
+      }
+  });
+});

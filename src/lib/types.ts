@@ -8,6 +8,8 @@ export interface Profile {
   water_goal_ml: number;
   glass_ml: number;
   creatine_g: number;
+  /** Welk schema deze persoon volgt (zie PROGRAMS). */
+  program?: string | null;
   created_at: string;
 }
 
@@ -21,6 +23,8 @@ export interface Workout {
   cardio_description: string | null;
   cardio_minutes: number | null;
   notes: string | null;
+  /** Schema waarmee deze training gestart is (oude trainingen: standaard). */
+  program?: string | null;
 }
 
 export interface SetRow {

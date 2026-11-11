@@ -3,10 +3,11 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
-import { ArrowLeft, Check, ChevronDown, ExternalLink, Pencil, Plus, Repeat, Sparkles, Trash2, Zap } from "lucide-react";
+import { ArrowLeft, Check, ChevronDown, ExternalLink, Info, Pencil, Plus, Repeat, Sparkles, Trash2, X, Zap } from "lucide-react";
 import { EXERCISE_MAP, optionsFor, snapToStack, videoUrl, type Exercise } from "@/lib/exercises";
 import { DAY_LABEL, type GymDay } from "@/lib/schedule";
-import type { PlannedItem } from "@/lib/plan";
+import { bonusItem, type PlannedItem } from "@/lib/plan";
+import { ExerciseLibrary } from "@/components/ExerciseLibrary";
 import type { Suggestion } from "@/lib/progression";
 import type { SetRow } from "@/lib/types";
 import { deleteSet, discardWorkout, finishWorkout, logSet, updateSet } from "@/app/actions";
@@ -347,7 +348,10 @@ function ExerciseBlock({
   scrollSignal = 0,
   extra = 0,
   onExtra,
+  onRemove,
 }: {
+  /** Alleen bij een lege bonusoefening: weer uit de training halen. */
+  onRemove?: () => void;
   extra?: number;
   onExtra: () => void;
   inGroup?: boolean;
@@ -391,6 +395,7 @@ function ExerciseBlock({
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5">
             {item.coach && <Sparkles size={14} className="text-pin-deep" aria-label="Aangepast door coach" />}
+            {item.bonus && <span className="rounded-full bg-pin-dim px-2 py-0.5 text-[11px] font-semibold uppercase text-pin-deep">Bonus</span>}
           </div>
           <h3 className="font-semibold leading-tight">{ex.name}</h3>
           <p className="text-sm text-mute">
@@ -432,6 +437,12 @@ function ExerciseBlock({
       )}
 
       <div className="space-y-2 px-3 pb-3">
+        {item.tip && (
+          <p className="flex gap-1.5 rounded-lg bg-floor px-3 py-2 text-sm">
+            <Info size={15} className="mt-0.5 shrink-0 text-pin-deep" aria-hidden />
+            {item.tip}
+          </p>
+        )}
         {sets.length === 0 && optionsFor(item.exerciseId).filter((a) => !taken.includes(a)).length > 1 && (
           <div>
             <button type="button" onClick={() => setPicking((p) => !p)} className="flex items-center gap-1.5 text-sm font-medium text-pin-deep" aria-expanded={picking}>
@@ -483,6 +494,11 @@ function ExerciseBlock({
             onSave={(v) => onLog(exerciseId, sets.length + 1, v)}
           />
         )}
+        {onRemove && sets.length === 0 && (
+          <button onClick={onRemove} className="flex w-full items-center justify-center gap-1.5 py-1.5 text-sm text-mute">
+            <X size={14} /> Bonusoefening weghalen
+          </button>
+        )}
         {sets.length >= target && (
           <button onClick={onExtra} className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-line py-2 text-sm text-mute">
             <Plus size={14} /> Extra set
@@ -493,15 +509,17 @@ function ExerciseBlock({
   );
 }
 
-export function TrainingSession({ workoutId, day, startedAt, items, notes, info, logged, preferred, editMode }: Props) {
+export function TrainingSession({ workoutId, day, startedAt, items: initialItems, notes, info, logged, preferred, editMode }: Props) {
   const [sets, setSets] = useState<SetRow[]>(logged);
+  const [items, setItems] = useState<PlannedItem[]>(initialItems);
+  const [adding, setAdding] = useState(false);
   const [swaps, setSwaps] = useState<Record<number, string>>(() => {
     // Als er al sets van een alternatief zijn gelogd, toon dat alternatief.
     // Een oefening die zelf ook in het schema staat telt nooit als alternatief voor een andere plek,
     // anders verschijnen dezelfde sets in twee blokken (en tellen ze dubbel mee).
     const out: Record<number, string> = {};
-    const planned = new Set(items.map((it) => it.exerciseId));
-    items.forEach((it, i) => {
+    const planned = new Set(initialItems.map((it) => it.exerciseId));
+    initialItems.forEach((it, i) => {
       const alt = optionsFor(it.exerciseId)
         .filter((a) => a === it.exerciseId || !planned.has(a))
         .find((a) => logged.some((s) => s.exercise_id === a));
@@ -519,9 +537,10 @@ export function TrainingSession({ workoutId, day, startedAt, items, notes, info,
   const [note, setNote] = useState("");
   const [pending, start] = useTransition();
 
-  const totalPlanned = items.reduce((a, b) => a + b.sets, 0);
+  // Bonusoefeningen tellen niet mee voor het percentage: dat gaat over je schema.
+  const totalPlanned = items.reduce((a, b) => a + (b.bonus ? 0 : b.sets), 0);
   const totalDone = useMemo(
-    () => items.reduce((a, it, i) => a + Math.min(it.sets, sets.filter((s) => s.exercise_id === (swaps[i] ?? it.exerciseId)).length), 0),
+    () => items.reduce((a, it, i) => a + (it.bonus ? 0 : Math.min(it.sets, sets.filter((s) => s.exercise_id === (swaps[i] ?? it.exerciseId)).length)), 0),
     [items, sets, swaps],
   );
 
@@ -688,6 +707,16 @@ export function TrainingSession({ workoutId, day, startedAt, items, notes, info,
               sets={sets.filter((s) => s.exercise_id === exId).sort((a, b) => a.set_number - b.set_number)}
               onSwap={(to) => setSwaps((s) => ({ ...s, [i]: to }))}
               taken={items.map((_, j) => exOf(j)).filter((_, j) => j !== i)}
+              onRemove={
+                it.bonus
+                  ? () => {
+                      setItems((list) => list.filter((_, j) => j !== i));
+                      setSwaps((s) => Object.fromEntries(Object.entries(s).filter(([k]) => Number(k) !== i).map(([k, v]) => [Number(k) > i ? Number(k) - 1 : Number(k), v])));
+                      setExtras((x) => Object.fromEntries(Object.entries(x).filter(([k]) => Number(k) !== i).map(([k, v]) => [Number(k) > i ? Number(k) - 1 : Number(k), v])));
+                      setChosen(null);
+                    }
+                  : undefined
+              }
               onLog={(id, n, v) => onLog(id, n, v, i)}
               onDelete={onDelete}
               onUpdate={onUpdate}
@@ -764,6 +793,40 @@ export function TrainingSession({ workoutId, day, startedAt, items, notes, info,
           </section>
         );
       })}
+
+      {!editMode && (
+        <button
+          onClick={() => setAdding(true)}
+          className="flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-line py-3.5 font-semibold text-pin-deep"
+        >
+          <Plus size={18} /> Bonusoefening toevoegen
+        </button>
+      )}
+      {adding && (
+        <div className="fixed inset-0 z-40 flex flex-col bg-floor" role="dialog" aria-modal="true" aria-label="Bonusoefening kiezen">
+          <header className="flex items-center gap-3 border-b border-line bg-steel px-4 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))]">
+            <div className="flex-1">
+              <p className="display text-2xl font-bold uppercase leading-none">Bonusoefening</p>
+              <p className="text-xs text-mute">Alleen voor deze training. Telt niet mee voor je %.</p>
+            </div>
+            <button onClick={() => setAdding(false)} aria-label="Sluiten" className="grid size-10 place-items-center rounded-full bg-steel-2">
+              <X size={20} />
+            </button>
+          </header>
+          <div className="mx-auto w-full max-w-md flex-1 overflow-y-auto px-4 py-3 pb-[max(1rem,env(safe-area-inset-bottom))]">
+            <ExerciseLibrary
+              compact
+              exclude={items.map((_, j) => exOf(j))}
+              onPick={(id) => {
+                setItems((list) => [...list, bonusItem(id)]);
+                setChosen(items.length);
+                setAdding(false);
+                setScrollSignal((n) => n + 1);
+              }}
+            />
+          </div>
+        </div>
+      )}
 
       <section className="space-y-3 pt-2">
         {!editMode && (

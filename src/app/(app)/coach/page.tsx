@@ -70,10 +70,10 @@ function AdviceCard({ a, active }: { a: CoachAdvice; active: boolean }) {
 }
 
 export default async function CoachPage() {
-  const { supabase, user } = await requireMe();
+  const { supabase, user, profile } = await requireMe();
   const [advice, workouts] = await Promise.all([loadLatestAdvice(supabase, user.id), loadWorkouts(supabase, user.id, 30)]);
   const today = dayKey();
-  const next = nextGymDay(workouts);
+  const next = nextGymDay(workouts, profile.program);
   const gymCount = workouts.filter((w) => w.completed_at && w.day_type !== "cardio" && !w.quick_check).length;
 
   return (

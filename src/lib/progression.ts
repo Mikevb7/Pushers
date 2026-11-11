@@ -107,7 +107,10 @@ export function suggest(item: PlanItem, ex: Exercise, history: Session[]): Sugge
       return stackStep(ex, w, n);
     }
     let k = Math.round((target - w) / ex.increment);
-    if (dir === "up") k = Math.min(Math.max(k, 1), Math.max(1, Math.floor((w * 0.1) / ex.increment)));
+    // Normaal hooguit +10%. Zat je ver boven de range (bijv. 10 reps bij een range van 4-6, na een
+    // schemawissel), dan mag de stap groter: anders duurt het weken voor je op het juiste gewicht zit.
+    const maxUp = top.reps >= item.repMax + 3 ? 0.15 : 0.1;
+    if (dir === "up") k = Math.min(Math.max(k, 1), Math.max(1, Math.floor((w * maxUp) / ex.increment)));
     else k = Math.max(Math.min(k, -1), -Math.max(1, Math.floor((w * 0.2) / ex.increment)));
     return round(Math.max(ex.increment, w + k * ex.increment));
   };

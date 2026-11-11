@@ -1,5 +1,5 @@
 // Welke training is de volgende, weekoverzicht en streaks.
-import { DAY_LABEL, ROTATION, GYM_SESSIONS_PER_WEEK, type GymDay } from "./schedule";
+import { DAY_LABEL, GYM_SESSIONS_PER_WEEK, programOf, type GymDay } from "./schedule";
 import { addDays, dayKey, weekStart } from "./dates";
 import type { HabitLog, Workout } from "./types";
 
@@ -7,13 +7,14 @@ const isGym = (w: Workout) => w.day_type !== "cardio";
 const done = (ws: Workout[]) => ws.filter((w) => w.completed_at);
 
 /** Volgende training in de rotatie, op basis van de laatst afgeronde gymtraining. */
-export function nextGymDay(workouts: Workout[]): GymDay {
+export function nextGymDay(workouts: Workout[], program?: string | null): GymDay {
+  const rotation = programOf(program).rotation;
   const last = done(workouts)
     .filter(isGym)
     .sort((a, b) => b.started_at.localeCompare(a.started_at))[0];
-  if (!last) return "push";
-  const i = ROTATION.indexOf(last.day_type as GymDay);
-  return ROTATION[(i + 1) % ROTATION.length];
+  if (!last) return rotation[0];
+  const i = rotation.indexOf(last.day_type as GymDay);
+  return rotation[(i + 1) % rotation.length];
 }
 
 export interface WeekStatus {
@@ -85,13 +86,13 @@ function muscleRest(workouts: Workout[], next: GymDay, today: string): Map<strin
  * Rustadvies voor vandaag. Kijkt naar welke spieren de volgende training raakt
  * en wanneer die voor het laatst gewerkt hebben, niet alleen naar het aantal dagen op rij.
  */
-export function trainingAdvice(workouts: Workout[], today = dayKey()): string | null {
+export function trainingAdvice(workouts: Workout[], today = dayKey(), program?: string | null): string | null {
   const week = weekStatus(workouts, today);
   const trainedToday = week.days.find((d) => d.key === today)?.workouts.some(isGym);
   if (trainedToday) return null;
   if (week.gymDone >= GYM_SESSIONS_PER_WEEK) return "Je 4 gymtrainingen zitten erin. Rust, of doe je cardio.";
 
-  const next = nextGymDay(workouts);
+  const next = nextGymDay(workouts, program);
   const label = DAY_LABEL[next];
   const streak = consecutiveGymDays(workouts, today);
   const rest = muscleRest(workouts, next, today);

@@ -2,7 +2,7 @@
 import { EXERCISE_MAP, barOf, optionsFor } from "./exercises";
 import { addDays, dayKey, weekday } from "./dates";
 import { countingSets, e1rm, type DatedSet } from "./stats";
-import { PLAN, type DayType, type GymDay } from "./schedule";
+import { programOf, type DayType, type GymDay } from "./schedule";
 import type { Workout } from "./types";
 
 /** Vaste kleur per trainingsdag, voor kalender en labels. */
@@ -38,7 +38,7 @@ export interface Completion {
  */
 export function completion(w: Workout, sets: { workout_id: string; exercise_id: string }[]): Completion | null {
   if (w.day_type === "cardio" || w.quick_check) return null;
-  const plan = PLAN[w.day_type as GymDay];
+  const plan = programOf(w.program).plan[w.day_type as GymDay];
   if (!plan) return null;
   const mine = sets.filter((s) => s.workout_id === w.id);
   const left = new Map<string, number>();

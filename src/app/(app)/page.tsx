@@ -1,6 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowRight, Check, ChevronDown, ChevronRight, MessageCircle, Plus, Repeat, Scale, Sparkles } from "lucide-react";
+import { ArrowRight, BookOpen, Check, ChevronDown, ChevronRight, MessageCircle, Plus, Repeat, Scale, Sparkles } from "lucide-react";
 import { closeStaleWorkouts, loadActiveAdvice, loadHabits, loadProfiles, loadSets, loadSocial, loadWeights, loadWorkouts, requireMe } from "@/lib/data";
 import { activeNow, daypart, joinNames, noticesFor } from "@/lib/activity";
 import { summarize } from "@/lib/history";
@@ -8,7 +8,7 @@ import { reactionState } from "@/lib/social";
 import { WorkoutCard } from "@/components/WorkoutCard";
 import { AutoRefresh } from "@/components/AutoRefresh";
 import { dayKey, daysBetween, timeAgo, WEEKDAY_SHORT } from "@/lib/dates";
-import { DAY_LABEL, PLAN, GYM_SESSIONS_PER_WEEK, ROTATION } from "@/lib/schedule";
+import { DAY_LABEL, GYM_SESSIONS_PER_WEEK, programOf } from "@/lib/schedule";
 import { habitStreak, nextGymDay, trainingAdvice, weekStatus } from "@/lib/rotation";
 import { findPRs, formatPct, overallProgress } from "@/lib/stats";
 import { planFor } from "@/lib/plan";
@@ -70,14 +70,15 @@ export default async function Home() {
 
   const today = dayKey();
   const pride = themeFor(user.id) === "pride";
-  const next = nextGymDay(workouts);
+  const program = programOf(profile.program);
+  const next = nextGymDay(workouts, profile.program);
   const week = weekStatus(workouts, today);
-  const warn = trainingAdvice(workouts, today);
+  const warn = trainingAdvice(workouts, today, profile.program);
   const openToday = workouts.find((w) => !w.completed_at && w.day_type !== "cardio" && dayKey(w.started_at) === today);
   const doneToday = week.days.find((d) => d.key === today)?.workouts.filter((w) => w.day_type !== "cardio") ?? [];
   const todayLog = habits.find((h) => h.day === today);
   const monthPct = overallProgress(sets, "maand", profile.bodyweight_kg, today);
-  const { items, notes } = planFor(next, advice);
+  const { items, notes } = planFor(next, advice, profile.program);
   const coachTouched = items.filter((i) => i.coach).length + notes.length;
   const startDay = openToday ? (openToday.day_type as typeof next) : next;
 
@@ -90,6 +91,10 @@ export default async function Home() {
             Hoi <CrewName userId={user.id} name={profile.display_name} />
           </p>
         </div>
+        <div className="flex items-center gap-2">
+        <Link href="/oefeningen" aria-label="Oefeningenbibliotheek" className="grid size-10 place-items-center rounded-full bg-steel shadow-sm">
+          <BookOpen size={18} aria-hidden />
+        </Link>
         <Link
           href="/profiel"
           aria-label="Profiel en instellingen"
@@ -97,6 +102,7 @@ export default async function Home() {
         >
           {profile.display_name.slice(0, 1).toUpperCase()}
         </Link>
+        </div>
       </header>
 
       <section className="relative overflow-hidden rounded-[1.75rem] bg-night text-white">
@@ -116,7 +122,7 @@ export default async function Home() {
           <p className="text-sm font-medium text-white/75">{openToday ? "Bezig met" : doneToday.length ? "Volgende training" : "Training van vandaag"}</p>
           <h1 className="display mt-1 text-[6.5rem] font-bold uppercase leading-[0.85]">{DAY_LABEL[startDay]}</h1>
           <p className="mt-3 text-white/80">
-            {PLAN[startDay].focus}, {items.length} oefeningen
+            {program.plan[startDay].focus}, {program.plan[startDay].items.length} oefeningen
           </p>
           <form action={startWorkout.bind(null, startDay)} className="mt-5">
             <SubmitButton
@@ -221,7 +227,7 @@ export default async function Home() {
             Alleen doen als het echt moet, bijvoorbeeld om met een maat mee te trainen. Je schema gaat daarna verder vanaf de training die je kiest.
           </p>
           <div className="mt-3 grid grid-cols-3 gap-2">
-            {ROTATION.filter((d) => d !== startDay).map((d) => (
+            {program.rotation.filter((d) => d !== startDay).map((d) => (
               <form key={d} action={startWorkout.bind(null, d)}>
                 <SubmitButton pendingText="…" className="w-full rounded-xl bg-steel-2 py-3 font-semibold active:brightness-95">
                   {DAY_LABEL[d]}

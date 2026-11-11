@@ -1,6 +1,6 @@
 // Bouwt de context voor de AI-coach en controleert wat de coach terugstuurt.
 import { EXERCISES, EXERCISE_MAP, MUSCLE_LABEL, formatLoad } from "./exercises";
-import { PLAN, ROTATION, type GymDay } from "./schedule";
+import { ROTATION, programOf, type GymDay } from "./schedule";
 import { addDays, daysBetween, dayKey, weekStart } from "./dates";
 import { sessionsFor, suggest } from "./progression";
 import { exerciseIdsIn, exerciseProgress, exerciseSeries, muscleProgress, weeklySets, type DatedSet } from "./stats";
@@ -17,6 +17,7 @@ export function buildCoachContext(input: {
   today?: string;
 }) {
   const { profile, workouts, sets, habits } = input;
+  const program = programOf(profile.program);
   const today = input.today ?? dayKey();
   const bw = profile.bodyweight_kg;
   const dates = Object.fromEntries(sets.map((s) => [s.workout_id, s.date]));
@@ -31,7 +32,7 @@ export function buildCoachContext(input: {
     const ex = EXERCISE_MAP[id];
     const series = exerciseSeries(sets, id, bw);
     const sessions = sessionsFor(id, sets, dates);
-    const item = ROTATION.flatMap((d) => PLAN[d].items).find((i) => i.exerciseId === id);
+    const item = program.rotation.flatMap((d) => program.plan[d].items).find((i) => i.exerciseId === id);
     return {
       id,
       naam: ex.name,
@@ -54,12 +55,16 @@ export function buildCoachContext(input: {
       weken_bezig: Math.floor(daysBetween(dayKey(profile.created_at), today) / 7),
       lichaamsgewicht_kg: bw,
     },
-    doel: "Zo snel mogelijk zo veel mogelijk spiermassa (hypertrofie). 4x gym per week in rotatie Push/Pull/Legs/Upper, 1x cardio die hij zelf invult.",
-    volgende_training: nextGymDay(workouts),
+    doel:
+      program.id === "kort"
+        ? "Zo snel mogelijk sterker op bankdrukken (doel 100 kg) en spiermassa, met korte trainingen van ±45 minuten. 4x gym per week in rotatie Legs/Push/Pull/Upper, 1x cardio die hij zelf invult. Houd de trainingen kort: liever een set eraf dan erbij."
+        : "Zo snel mogelijk zo veel mogelijk spiermassa (hypertrofie). 4x gym per week in rotatie Push/Pull/Legs/Upper, 1x cardio die hij zelf invult.",
+    volgende_training: nextGymDay(workouts, profile.program),
+    schema: `${program.name}: ${program.description}`,
     dagen_achter_elkaar_getraind: consecutiveGymDays(workouts, today),
     trainingen_per_week: weeks,
     basisschema: Object.fromEntries(
-      ROTATION.map((d) => [d, PLAN[d].items.map((i) => `${i.exerciseId}: ${i.sets}×${i.repMin}-${i.repMax}`)]),
+      program.rotation.map((d) => [d, program.plan[d].items.map((i) => `${i.exerciseId}: ${i.sets}×${i.repMin}-${i.repMax}`)]),
     ),
     progressie_per_spiergroep_maand: muscleProgress(sets, "maand", bw, today).map((m) => ({ spier: m.muscle, pct: r1(m.pct) })),
     progressie_per_spiergroep_sinds_start: muscleProgress(sets, "start", bw, today).map((m) => ({ spier: m.muscle, pct: r1(m.pct) })),
@@ -124,7 +129,8 @@ export const COACH_TOOL = {
 };
 
 /** Alleen geldige aanpassingen doorlaten. */
-export function sanitizeAdjustments(raw: unknown, onlyDay?: GymDay): Adjustment[] {
+export function sanitizeAdjustments(raw: unknown, onlyDay?: GymDay, programId?: string | null): Adjustment[] {
+  const plan = programOf(programId).plan;
   if (!Array.isArray(raw)) return [];
   const out: Adjustment[] = [];
   const perDay: Record<string, number> = {};
@@ -135,7 +141,7 @@ export function sanitizeAdjustments(raw: unknown, onlyDay?: GymDay): Adjustment[
     if (onlyDay && day !== onlyDay) continue;
     if ((perDay[day] ?? 0) >= 3) continue;
     const d = day as GymDay;
-    const inPlan = typeof exerciseId === "string" && PLAN[d].items.some((i) => i.exerciseId === exerciseId);
+    const inPlan = typeof exerciseId === "string" && plan[d].items.some((i) => i.exerciseId === exerciseId);
     const why = typeof reason === "string" ? reason.slice(0, 100) : undefined;
     if (type === "note" && typeof note === "string" && note.trim()) {
       out.push({ type: "note", day: d, note: note.trim().slice(0, 200) });

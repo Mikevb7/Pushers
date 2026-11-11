@@ -214,5 +214,5 @@ create policy "eigen gewicht" on public.body_weights for all to authenticated
   using (user_id = auth.uid()) with check (user_id = auth.uid());
 
 -- Schema per persoon: 'standaard' of 'kort' (bench-focus). Trainingen onthouden met welk schema ze gestart zijn.
-alter table public.profiles add column if not exists program text not null default 'standaard' check (program in ('standaard','kort'));
+alter table public.profiles add column if not exists program text not null default 'kort' check (program in ('standaard','kort'));
 alter table public.workouts add column if not exists program text not null default 'standaard' check (program in ('standaard','kort'));

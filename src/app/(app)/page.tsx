@@ -81,6 +81,8 @@ export default async function Home() {
   const { items, notes } = planFor(next, advice, profile.program);
   const coachTouched = items.filter((i) => i.coach).length + notes.length;
   const startDay = openToday ? (openToday.day_type as typeof next) : next;
+  // Nog niks gelogd in de open training? Dan mag je nog wisselen (bijv. om met iemand mee te trainen).
+  const openTodayEmpty = !!openToday && !sets.some((s) => s.workout_id === openToday.id);
 
   return (
     <div className="space-y-6">
@@ -216,7 +218,7 @@ export default async function Home() {
         </section>
       )}
 
-      {!openToday && (
+      {(!openToday || openTodayEmpty) && (
         <details className="card group px-4 py-3">
           <summary className="flex cursor-pointer list-none items-center gap-2 text-sm font-medium">
             <Repeat size={15} className="text-pin-deep" aria-hidden />

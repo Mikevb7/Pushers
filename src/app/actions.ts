@@ -29,9 +29,29 @@ export async function startWorkout(day: GymDay) {
     .order("started_at", { ascending: false })
     .limit(1);
   const existing = open?.find((w) => dayKey(w.started_at) === dayKey());
-  if (existing) redirect(`/training/${existing.id}`);
-
   const program = await myProgram(supabase, user.id);
+  if (existing) {
+    // Nog leeg? Dan meteen op je huidige schema zetten (bijv. na een schemawissel).
+    const { count } = await supabase.from("sets").select("id", { count: "exact", head: true }).eq("workout_id", existing.id);
+    if (!count) await supabase.from("workouts").update({ program }).eq("id", existing.id);
+    redirect(`/training/${existing.id}`);
+  }
+
+  // Wissel je naar een andere training terwijl er vandaag nog een lege open staat? Die ruimen we op,
+  // anders blijft hij als "bezig" staan.
+  const { data: others } = await supabase
+    .from("workouts")
+    .select("id, started_at")
+    .eq("user_id", user.id)
+    .neq("day_type", day)
+    .neq("day_type", "cardio")
+    .is("completed_at", null);
+  for (const w of others ?? []) {
+    if (dayKey(w.started_at) !== dayKey()) continue;
+    const { count } = await supabase.from("sets").select("id", { count: "exact", head: true }).eq("workout_id", w.id);
+    if (!count) await supabase.from("workouts").delete().eq("id", w.id);
+  }
+
   const { data, error } = await supabase.from("workouts").insert({ day_type: day, program }).select("id").single();
   if (error || !data) throw new Error(error?.message ?? "Kon training niet starten");
   redirect(`/training/${data.id}`);

@@ -3,8 +3,8 @@ import { loadActiveAdvice, loadSets, loadWorkouts, requireUser } from "@/lib/dat
 import { EXERCISES, EXERCISE_MAP, formatLoad, optionsFor } from "@/lib/exercises";
 import { bonusItem, planFor } from "@/lib/plan";
 import { lastSessionSets } from "@/lib/history";
-import { sessionsFor, suggest, type Suggestion } from "@/lib/progression";
-import type { GymDay } from "@/lib/schedule";
+import { sessionsFor, suggest, suggestFromOtherDay, type Suggestion } from "@/lib/progression";
+import { DAY_LABEL, programOf, type GymDay } from "@/lib/schedule";
 import type { SetRow, Workout } from "@/lib/types";
 import { TrainingSession, type ExerciseInfo } from "@/components/TrainingSession";
 
@@ -66,16 +66,30 @@ export default async function TrainingPage({
   // Info voor álle oefeningen: je kunt er elk moment een als bonus toevoegen.
   const ids = new Set<string>(EXERCISES.map((e) => e.id));
 
+  // Staat een oefening op meerdere dagen (bijv. bankdrukken zwaar op push, volume op upper),
+  // dan vergelijken we alleen met dezelfde soort dag. Anders neemt upper het zware gewicht van push over.
+  const program = programOf(workout.program);
+  const onDays = (exId: string) =>
+    program.rotation.filter((d) => program.plan[d].items.some((i) => optionsFor(i.exerciseId).includes(exId)));
+  const dayOf = new Map(workouts.map((w) => [w.id, w.day_type]));
   const info: Record<string, ExerciseInfo> = {};
   for (const exId of ids) {
     const ex = EXERCISE_MAP[exId];
     if (!ex) continue;
     const base = items.find((i) => i.exerciseId === exId) ?? items.find((i) => optionsFor(i.exerciseId).includes(exId)) ?? bonusItem(exId);
-    const sessions = sessionsFor(exId, history, dates);
-    const sug: Suggestion = base ? suggest(base, ex, sessions) : { kind: "first", weight: null, reps: 10, text: "" };
+    const all = sessionsFor(exId, history, dates);
+    const multi = onDays(exId).length > 1;
+    const same = multi ? all.filter((s) => dayOf.get(s.workoutId) === day) : all;
+    const sessions = same;
+    let sug: Suggestion = suggest(base, ex, sessions);
+    if (multi && same.length === 0 && all.length > 0) {
+      const otherDay = dayOf.get(all[0].workoutId) as GymDay | undefined;
+      sug = suggestFromOtherDay(base, ex, all[0], otherDay ? DAY_LABEL[otherDay] : "een andere dag");
+    }
     const last = sessions[0];
+    const sameHistory = multi ? history.filter((s) => dayOf.get(s.workout_id) === day) : history;
     info[exId] = {
-      lastSets: lastSessionSets(history, exId),
+      lastSets: lastSessionSets(sameHistory, exId),
       suggestion: sug,
       last: last
         ? `${formatLoad(exId, Math.max(...last.sets.map((s) => Number(s.weight_kg))))} × ${last.sets.map((s) => s.reps).join(", ")}`

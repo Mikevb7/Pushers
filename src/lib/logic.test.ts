@@ -387,3 +387,15 @@ describe("kort schema", () => {
       }
   });
 });
+
+describe("zelfde oefening op twee dagen", () => {
+  it("upper neemt het zware push-gewicht niet over", async () => {
+    const { suggestFromOtherDay } = await import("./progression");
+    const { getExercise } = await import("./exercises");
+    const { PLAN_KORT } = await import("./schedule");
+    const mk = (n: number, reps: number) => ({ id: `b${n}`, workout_id: "w1", user_id: "u", exercise_id: "bench-press", set_number: n, weight_kg: 80, reps, rir: 0, is_drop: false, drop_weight_kg: null, drop_reps: null, created_at: "2026-11-12T10:00:00Z" });
+    const s = suggestFromOtherDay(PLAN_KORT.upper.items[0], getExercise("bench-press"), { workoutId: "w1", date: "2026-11-12", sets: [mk(1, 5), mk(2, 3), mk(3, 4), mk(4, 4)] }, "Push");
+    expect(s.weight).toBeGreaterThanOrEqual(67.5);
+    expect(s.weight).toBeLessThanOrEqual(72.5);
+  });
+});

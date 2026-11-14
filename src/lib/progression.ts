@@ -227,3 +227,26 @@ export function suggest(item: PlanItem, ex: Exercise, history: Session[]): Sugge
   };
 }
 
+
+
+/**
+ * Oefening die op twee dagen met een andere rep-range staat (bijv. bankdrukken zwaar op push, 6-8 op upper)
+ * en die je op déze dag nog nooit deed: reken het gewicht om vanuit je geschatte max van de andere dag,
+ * in plaats van het gewicht van de zware dag over te nemen.
+ */
+export function suggestFromOtherDay(item: PlanItem, ex: Exercise, other: Session, otherLabel: string): Suggestion {
+  const bar = barOf(ex);
+  const top = other.sets.reduce((a, b) => (e1rm(Number(b.weight_kg), b.reps, ex) > e1rm(Number(a.weight_kg), a.reps, ex) ? b : a));
+  const est = e1rm(Number(top.weight_kg), top.reps + (top.rir ?? 0), ex);
+  const reps = Math.round((item.repMin + item.repMax) / 2);
+  // Doel: midden van de range met nog ±2 reps over.
+  let w = est / (1 + (reps + 2) / 30) - bar;
+  w = ex.stack?.length ? snapToStack(ex, w) : Math.max(ex.increment, Math.floor(w / ex.increment) * ex.increment);
+  w = Math.round(w * 100) / 100;
+  return {
+    kind: "first",
+    weight: w,
+    reps,
+    text: `Op ${otherLabel} deed je ${formatLoad(ex.id, Number(top.weight_kg))} × ${top.reps}. Vandaag meer reps (${item.repMin}-${item.repMax}): begin rond ${formatLoad(ex.id, w)} en ga voor ${reps}.`,
+  };
+}
